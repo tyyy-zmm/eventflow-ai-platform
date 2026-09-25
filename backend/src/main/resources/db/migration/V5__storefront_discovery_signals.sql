@@ -1,0 +1,6 @@
+ALTER TABLE ux_storefront
+  ADD COLUMN rating DECIMAL(2,1) NOT NULL DEFAULT 4.7,
+  ADD COLUMN review_count INT NOT NULL DEFAULT 0,
+  ADD COLUMN monthly_sales INT NOT NULL DEFAULT 0,
+  ADD COLUMN distance_meters INT NOT NULL DEFAULT 0;
+

@@ -1,0 +1,102 @@
+name: life-choice
+services:
+  mysql:
+    image: mysql:8.4
+    environment:
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD:?copy .env.example to .env and replace secrets}
+      MYSQL_DATABASE: life_choice
+      MYSQL_USER: life_choice
+      MYSQL_PASSWORD: ${MYSQL_PASSWORD:?copy .env.example to .env and replace secrets}
+      MYSQL_INITDB_SKIP_TZINFO: "1"
+    command: ["--default-time-zone=+00:00", "--innodb-buffer-pool-size=256M"]
+    volumes: ["mysql-data:/var/lib/mysql"]
+    ports: ["127.0.0.1:${MYSQL_PORT:-23307}:3306"]
+    healthcheck:
+      test: ["CMD-SHELL", "MYSQL_PWD=$$MYSQL_PASSWORD mysql -ulife_choice -h127.0.0.1 life_choice -e 'SELECT 1' >/dev/null"]
+      interval: 5s
+      timeout: 5s
+      retries: 40
+    restart: unless-stopped
+
+  redis:
+    image: redis:7.4-alpine
+    environment:
+      REDIS_PASSWORD: ${REDIS_PASSWORD:?copy .env.example to .env and replace secrets}
+    command: ["sh", "-c", "exec redis-server --appendonly yes --maxmemory 128mb --maxmemory-policy noeviction --requirepass \"$$REDIS_PASSWORD\""]
+    volumes: ["redis-data:/data"]
+    ports: ["127.0.0.1:${REDIS_PORT:-26380}:6379"]
+    healthcheck:
+      test: ["CMD-SHELL", "redis-cli -a \"$$REDIS_PASSWORD\" ping | grep PONG"]
+      interval: 5s
+      timeout: 5s
+      retries: 30
+    restart: unless-stopped
+
+  kafka:
+    image: apache/kafka:3.9.1
+    environment:
+      KAFKA_NODE_ID: "1"
+      KAFKA_PROCESS_ROLES: broker,controller
+      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: CONTROLLER:PLAINTEXT,INTERNAL:PLAINTEXT,EXTERNAL:PLAINTEXT
+      KAFKA_LISTENERS: CONTROLLER://:29093,INTERNAL://:29092,EXTERNAL://:9092
+      KAFKA_ADVERTISED_LISTENERS: INTERNAL://kafka:29092,EXTERNAL://127.0.0.1:${KAFKA_PORT:-29093}
+      KAFKA_INTER_BROKER_LISTENER_NAME: INTERNAL
+      KAFKA_CONTROLLER_LISTENER_NAMES: CONTROLLER
+      KAFKA_CONTROLLER_QUORUM_VOTERS: 1@kafka:29093
+      CLUSTER_ID: fL6g3nShT-eMCtK--X86sx
+      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: "1"
+      KAFKA_TRANSACTION_STATE_LOG_MIN_ISR: "1"
+      KAFKA_TRANSACTION_STATE_LOG_REPLICATION_FACTOR: "1"
+      KAFKA_GROUP_INITIAL_REBALANCE_DELAY_MS: "0"
+      KAFKA_LOG_RETENTION_HOURS: "24"
+      KAFKA_HEAP_OPTS: -Xms128m -Xmx384m
+    volumes: ["kafka-data:/var/lib/kafka/data"]
+    ports: ["127.0.0.1:${KAFKA_PORT:-29093}:9092"]
+    healthcheck:
+      test: ["CMD", "/opt/kafka/bin/kafka-topics.sh", "--bootstrap-server", "localhost:29092", "--list"]
+      interval: 10s
+      timeout: 10s
+      retries: 30
+    restart: unless-stopped
+
+  backend:
+    build: ./backend
+    environment:
+      SERVER_ADDRESS: 0.0.0.0
+      DATABASE_URL: jdbc:mysql://mysql:3306/life_choice?connectionTimeZone=UTC&forceConnectionTimeZoneToSession=true&socketTimeout=5000
+      DATABASE_USERNAME: life_choice
+      DATABASE_PASSWORD: ${MYSQL_PASSWORD}
+      REDIS_HOST: redis
+      REDIS_PORT: 6379
+      REDIS_PASSWORD: ${REDIS_PASSWORD}
+      KAFKA_BOOTSTRAP_SERVERS: kafka:29092
+      APP_AUTH_SECRET: ${APP_AUTH_SECRET}
+      COOKIE_SECURE: ${COOKIE_SECURE:-false}
+      DEEPSEEK_API_KEY: ${DEEPSEEK_API_KEY:-}
+      PLANNING_MODE: ${PLANNING_MODE:-stub}
+      DEEPSEEK_BASE_URL: ${DEEPSEEK_BASE_URL:-https://api.deepseek.com}
+      DEEPSEEK_MODEL: ${DEEPSEEK_MODEL:-deepseek-chat}
+      JAVA_TOOL_OPTIONS: -XX:MaxRAMPercentage=70 -XX:+UseG1GC
+    depends_on:
+      mysql: { condition: service_healthy }
+      redis: { condition: service_healthy }
+      kafka: { condition: service_healthy }
+    ports: ["127.0.0.1:${BACKEND_PORT:-8093}:8093"]
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://127.0.0.1:8093/actuator/health/readiness"]
+      interval: 10s
+      timeout: 3s
+      retries: 30
+    restart: unless-stopped
+
+  frontend:
+    build: ./frontend
+    ports: ["127.0.0.1:8080:8080"]
+    depends_on:
+      backend: { condition: service_healthy }
+    restart: unless-stopped
+
+volumes:
+  mysql-data:
+  redis-data:
+  kafka-data:

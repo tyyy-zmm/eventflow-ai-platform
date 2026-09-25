@@ -1,0 +1,89 @@
+server:
+  address: ${SERVER_ADDRESS:127.0.0.1}
+  port: ${SERVER_PORT:8093}
+  shutdown: graceful
+  tomcat:
+    threads:
+      max: 48
+    max-connections: 128
+    accept-count: 64
+spring:
+  task:
+    scheduling:
+      pool:
+        size: 3
+  datasource:
+    url: ${DATABASE_URL:${UPGRADE_DB_URL:jdbc:mysql://127.0.0.1:23307/life_choice?connectionTimeZone=UTC&forceConnectionTimeZoneToSession=true&socketTimeout=5000}}
+    username: ${DATABASE_USERNAME:life_choice}
+    password: ${DATABASE_PASSWORD:${UPGRADE_DB_PASSWORD:}}
+    hikari:
+      maximum-pool-size: 12
+      connection-timeout: 2000
+  jdbc:
+    template:
+      query-timeout: 3s
+  data:
+    redis:
+      host: ${REDIS_HOST:127.0.0.1}
+      port: ${REDIS_PORT:26380}
+      password: ${REDIS_PASSWORD:${UPGRADE_REDIS_PASSWORD:}}
+      timeout: 300ms
+      connect-timeout: 300ms
+  kafka:
+    bootstrap-servers: ${KAFKA_BOOTSTRAP_SERVERS:127.0.0.1:29093}
+    producer:
+      key-serializer: org.apache.kafka.common.serialization.StringSerializer
+      value-serializer: org.apache.kafka.common.serialization.StringSerializer
+      acks: all
+      properties:
+        enable.idempotence: true
+        delivery.timeout.ms: 5000
+        request.timeout.ms: 3000
+        max.block.ms: 2000
+    consumer:
+      group-id: upgrade-orders-v1
+      auto-offset-reset: earliest
+      enable-auto-commit: false
+      max-poll-records: 10
+      key-deserializer: org.apache.kafka.common.serialization.StringDeserializer
+      value-deserializer: org.apache.kafka.common.serialization.StringDeserializer
+    listener:
+      ack-mode: manual_immediate
+      concurrency: 2
+      missing-topics-fatal: false
+upgrade:
+  auth-secret: ${APP_AUTH_SECRET:${UPGRADE_AUTH_SECRET:change-this-local-development-secret-000000}}
+  topic: upgrade-orders-v1
+  jobs: true
+  rate-user: 5
+  rate-activity: 200
+  backlog-limit: 5000
+  oldest-seconds: 60
+  cache-soft-ms: 5000
+  cache-hard-ms: 15000
+  cookie-secure: ${COOKIE_SECURE:false}
+  planning:
+    mode: ${PLANNING_MODE:disabled}
+    api-key: ${DEEPSEEK_API_KEY:}
+    base-url: ${DEEPSEEK_BASE_URL:https://api.deepseek.com}
+    model: ${DEEPSEEK_MODEL:deepseek-chat}
+    timeout: 20s
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,prometheus
+  endpoint:
+    health:
+      probes:
+        enabled: true
+      show-details: never
+  health:
+    redis:
+      enabled: true
+    db:
+      enabled: true
+  metrics:
+    tags:
+      application: life-choice-backend
