@@ -25,8 +25,10 @@ public class ShopCache {
         public Entry(Shop shop,long softUntil) { this(shop,softUntil,0); }
     }
     record LocalEntry(Entry value,long until) {}
+    @org.springframework.beans.factory.annotation.Autowired(required=false) private ShopBloom bloom;
+    @org.springframework.beans.factory.annotation.Autowired(required=false) private CacheCircuit circuit;
     private final Cache<String,LocalEntry> local=Caffeine.newBuilder().maximumSize(10_000)
-        .expireAfterWrite(Duration.ofSeconds(1)).build();
+        .expireAfterWrite(Duration.ofSeconds(2)).build();
     private static final class Guard { long generation; }
     private final Guard[] guards=new Guard[256];
     private final LongAdder localHits=new LongAdder(),fallbacks=new LongAdder(),fallbackRejected=new LongAdder();
@@ -90,7 +92,9 @@ public class ShopCache {
         finally { readSlots.release(); }
     }
     private Entry read(String key) throws Exception {
-        String value=redis.opsForValue().get(key);
+        String value;long began=System.nanoTime();
+        try { value=redis.opsForValue().get(key);if(circuit!=null)circuit.record(System.nanoTime()-began,true); }
+        catch(DataAccessException unavailable) {if(circuit!=null)circuit.record(System.nanoTime()-began,false);throw unavailable;}
         if(value==null) return null;
         Entry entry=json.readValue(value,Entry.class);
         // Legacy payloads remain readable in Redis, but never enter L1 without an absolute deadline.
@@ -117,16 +121,18 @@ public class ShopCache {
         String key=key(id);Guard guard=guard(key);long generation;
         synchronized(guard) {
             var cached=local.getIfPresent(key);
-            if(cached!=null && cached.until()>System.currentTimeMillis()) {
+            if(cached!=null && (cached.until()>System.currentTimeMillis() ||
+                (circuit!=null && circuit.degraded() && cached.until()+1000>System.currentTimeMillis() && cached.value().hardUntil()>System.currentTimeMillis()))) {
                 localHits.increment();return cached.value().shop();
             }
             local.invalidate(key);generation=guard.generation;
         }
+        if(circuit!=null && !circuit.permit()) return fallback(id);
+        if(bloom!=null && !bloom.mightContain(id)) return null;
         Entry entry;
         try { entry=load(id); }
         catch(DataAccessException unavailable) {
-            if(!permitFallback()) { fallbackRejected.increment();throw new Problem(503,"SHOP_FALLBACK_BUSY"); }
-            fallbacks.increment();return direct(id);
+            return fallback(id);
         } catch(Problem p) { throw p; }
         catch(Exception unavailable) { throw new Problem(503,"SHOP_CACHE_UNAVAILABLE"); }
         long now=System.currentTimeMillis();
@@ -138,6 +144,10 @@ public class ShopCache {
             if(guard.generation==generation && until>now) local.put(key,new LocalEntry(entry,until));
         }
         return entry.shop();
+    }
+    private Shop fallback(long id) {
+        if(!permitFallback()) {fallbackRejected.increment();throw new Problem(503,"SHOP_FALLBACK_BUSY");}
+        fallbacks.increment();return direct(id);
     }
     private Entry load(long id) throws Exception {
         if(id<=0) throw new Problem(400,"INVALID_SHOP");
@@ -191,6 +201,7 @@ public class ShopCache {
         if(id<=0 || name==null || name.isBlank() || name.length()>200 || description==null || description.length()>10000)
             throw new Problem(400,"INVALID_SHOP");
         tx.run(()->{
+            if(bloom!=null && db.queryForObject("SELECT COUNT(*) FROM ux_shop WHERE id=?",Integer.class,id)==0) bloom.beforeInsert(id);
             // MySQL row lock also serializes invalidation generation changes for this shop.
             db.update("INSERT INTO ux_shop(id,name,description,revision) VALUES(?,?,?,1) ON DUPLICATE KEY UPDATE name=?,description=?,revision=revision+1",id,name,description,name,description);
             trading.invalidate(key(id));

@@ -27,6 +27,8 @@ public class Trading {
     private final Transactions tx;
     @org.springframework.beans.factory.annotation.Autowired(required=false)
     private Faults faults;
+    @org.springframework.beans.factory.annotation.Autowired(required=false)
+    private OrderProjection projection;
     public Trading(JdbcTemplate db, Transactions tx) { this.db=db; this.tx=tx; }
     static String uuid() { return UUID.randomUUID().toString(); }
     private <T> T read(PipelineMetrics.Stage stage,String sql,Class<T> type,Object... args) {
@@ -164,6 +166,7 @@ public class Trading {
         }
         write(SQL_ORDER_INSERT,"INSERT INTO ux_order(id,request_id,activity_id,user_id,price_cents,state,confirm_until,created_at) VALUES(?,?,?,?,?,'PENDING_CONFIRM',?,?)",
             uuid(),id,activity,r.userId(),a.get("price_cents"),Timestamp.from(now.plusSeconds(300)),Timestamp.from(now));
+        if(projection!=null) projection.changed((String)order(r.userId(),id).get("id"));
         return finish(r,"SUCCEEDED",null,now);
     }
     private Request finish(Request request,String state,String reason,Instant now) {
@@ -200,6 +203,7 @@ public class Trading {
             if(action.equals("expire") && !expired) return o;
             String next=expired ? "EXPIRED" : action.equals("confirm") ? "CONFIRMED" : "CANCELLED";
             int changed=db.update("UPDATE ux_order SET state=? WHERE id=? AND state='PENDING_CONFIRM'",next,o.get("id"));
+            if(changed==1 && projection!=null) projection.changed((String)o.get("id"));
             if(changed==1 && !next.equals("CONFIRMED")) {
                 db.update("UPDATE ux_activity SET available=available+1 WHERE id=?",r.activityId());
                 reservationAction(r.id(),"RESTORE",now);

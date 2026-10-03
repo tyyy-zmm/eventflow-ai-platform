@@ -53,6 +53,44 @@ class MiddlewareTest {
         return db.queryForObject("SELECT * FROM ux_outbox WHERE request_id=?",(s,n)->new Trading.Event(1,s.getString("id"),r.id(),r.activityId()),r.id());
     }
     void valid() { assertEquals(0L,trading.invariants().get("stockViolations"));assertEquals(0L,trading.invariants().get("stateViolations")); }
+    @Test void bloomCrossInstanceRegistrationAndJournalLossFailOpen() {
+        var first=new ShopBloom(db,redis,tx);var second=new ShopBloom(db,redis,tx);
+        first.rebuild();second.rebuild();long id=next();
+        assertFalse(second.mightContain(id));
+        tx.run(()->{first.beforeInsert(id);db.update("INSERT INTO ux_shop(id,name,description,revision) VALUES(?,?,?,1)",id,"Bloom test","new merchant");return null;});
+        assertTrue(second.mightContain(id));
+        redis.delete(ShopBloom.ADDED);
+        assertTrue(second.mightContain(next()));assertEquals(0L,second.metrics().get("ready"));
+    }
+    @Test void bloomRebuildWaitsForInsertAcrossJournalReset() throws Exception {
+        var writer=new ShopBloom(db,redis,tx);var reader=new ShopBloom(db,redis,tx);
+        writer.rebuild();long id=next();var registered=new CountDownLatch(1);var commit=new CountDownLatch(1);
+        var pool=Executors.newFixedThreadPool(2);
+        try {
+            var insert=pool.submit(()->tx.run(()->{
+                writer.beforeInsert(id);registered.countDown();
+                try {if(!commit.await(3,TimeUnit.SECONDS))throw new IllegalStateException("test timeout");}
+                catch(InterruptedException e){Thread.currentThread().interrupt();throw new IllegalStateException(e);}
+                db.update("INSERT INTO ux_shop(id,name,description,revision) VALUES(?,?,?,1)",id,"concurrent merchant","test");return null;
+            }));
+            assertTrue(registered.await(3,TimeUnit.SECONDS));redis.delete(ShopBloom.ADDED);
+            var rebuild=pool.submit(reader::rebuild);
+            assertThrows(TimeoutException.class,()->rebuild.get(100,TimeUnit.MILLISECONDS));
+            commit.countDown();insert.get(5,TimeUnit.SECONDS);rebuild.get(5,TimeUnit.SECONDS);
+            assertEquals(1L,reader.metrics().get("ready"));assertTrue(reader.mightContain(id));
+        } finally {commit.countDown();pool.shutdownNow();}
+    }
+    @Test void mysqlProjectionRetryAndOldRevisionCannotRegressCancelledOrder() {
+        var projection=new OrderProjection(db);var service=new Trading(db,tx);
+        org.springframework.test.util.ReflectionTestUtils.setField(service,"projection",projection);
+        long user=next(),a=activity(1);var request=service.accept(user,"projection_"+a,a,true);
+        var old=db.queryForMap("SELECT o.*,p.revision FROM ux_order o JOIN ux_order_projection p ON o.id=p.order_id WHERE o.request_id=?",request.id());
+        projection.apply(old);service.transition(user,request.id(),"cancel");
+        var latest=db.queryForMap("SELECT o.*,p.revision FROM ux_order o JOIN ux_order_projection p ON o.id=p.order_id WHERE o.request_id=?",request.id());
+        projection.apply(latest);projection.apply(old);projection.apply(latest);
+        assertEquals("CANCELLED",projection.list(user,1).get(0).get("state"));
+        assertTrue(projection.list(user+32,1).stream().noneMatch(r->r.get("request_id").equals(request.id())));valid();
+    }
     @Test void mysqlThousandRequestsHundredStock() throws Exception {
         long a=activity(100);var pool=Executors.newFixedThreadPool(16);
         try {

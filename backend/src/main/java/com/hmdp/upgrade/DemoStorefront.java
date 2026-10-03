@@ -13,6 +13,8 @@ import org.springframework.scheduling.annotation.Scheduled;
 @Component
 @ConditionalOnProperty(name="upgrade.demo-data",havingValue="true")
 public class DemoStorefront implements ApplicationRunner {
+    @org.springframework.beans.factory.annotation.Autowired
+    private ShopBloom bloom;
     private final JdbcTemplate db;
     private final Transactions tx;
     private final Reservations reservations;
@@ -52,6 +54,7 @@ public class DemoStorefront implements ApplicationRunner {
         tx.run(()->{
             for(int i=0;i<stores.length;i++) {
                 long shop=9101+i;var s=stores[i];
+                if(db.queryForObject("SELECT COUNT(*) FROM ux_shop WHERE id=?",Long.class,shop)==0) bloom.beforeInsert(shop);
                 db.update("INSERT INTO ux_shop(id,name,description,revision) VALUES(?,?,?,1) ON DUPLICATE KEY UPDATE name=VALUES(name),description=VALUES(description),revision=revision+1",shop,s[0],s[1]);
                 String hours=i%3==0?"09:00-21:30":i%3==1?"10:30-22:00":"10:00-21:00";
                 String highlights=s[6]+",可预约,到店体验";
