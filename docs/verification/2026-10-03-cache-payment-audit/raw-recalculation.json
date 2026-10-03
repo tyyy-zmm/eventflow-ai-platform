@@ -1,0 +1,220 @@
+{
+  "checks": [
+    {
+      "dataset": "multilevel-benchmark-1791020937633",
+      "round": 1,
+      "mode": "direct",
+      "requests": 182897,
+      "successes": 182897,
+      "passed": true
+    },
+    {
+      "dataset": "multilevel-benchmark-1791020937633",
+      "round": 1,
+      "mode": "ttl",
+      "requests": 227086,
+      "successes": 227086,
+      "passed": true
+    },
+    {
+      "dataset": "multilevel-benchmark-1791020937633",
+      "round": 1,
+      "mode": "optimized",
+      "requests": 482004,
+      "successes": 482004,
+      "passed": true
+    },
+    {
+      "dataset": "multilevel-benchmark-1791020937633",
+      "round": 2,
+      "mode": "ttl",
+      "requests": 199045,
+      "successes": 199045,
+      "passed": true
+    },
+    {
+      "dataset": "multilevel-benchmark-1791020937633",
+      "round": 2,
+      "mode": "optimized",
+      "requests": 530695,
+      "successes": 530695,
+      "passed": true
+    },
+    {
+      "dataset": "multilevel-benchmark-1791020937633",
+      "round": 2,
+      "mode": "direct",
+      "requests": 186711,
+      "successes": 186711,
+      "passed": true
+    },
+    {
+      "dataset": "multilevel-benchmark-1791020937633",
+      "round": 3,
+      "mode": "optimized",
+      "requests": 547529,
+      "successes": 547529,
+      "passed": true
+    },
+    {
+      "dataset": "multilevel-benchmark-1791020937633",
+      "round": 3,
+      "mode": "direct",
+      "requests": 199267,
+      "successes": 199267,
+      "passed": true
+    },
+    {
+      "dataset": "multilevel-benchmark-1791020937633",
+      "round": 3,
+      "mode": "ttl",
+      "requests": 235351,
+      "successes": 235351,
+      "passed": true
+    },
+    {
+      "dataset": "multilevel-benchmark-1791033569825",
+      "round": 1,
+      "mode": "direct",
+      "requests": 443772,
+      "successes": 443772,
+      "passed": true
+    },
+    {
+      "dataset": "multilevel-benchmark-1791033569825",
+      "round": 1,
+      "mode": "ttl",
+      "requests": 338826,
+      "successes": 338826,
+      "passed": true
+    },
+    {
+      "dataset": "multilevel-benchmark-1791033569825",
+      "round": 1,
+      "mode": "optimized",
+      "requests": 900171,
+      "successes": 900171,
+      "passed": true
+    },
+    {
+      "dataset": "multilevel-benchmark-1791033569825",
+      "round": 2,
+      "mode": "ttl",
+      "requests": 399191,
+      "successes": 399191,
+      "passed": true
+    },
+    {
+      "dataset": "multilevel-benchmark-1791033569825",
+      "round": 2,
+      "mode": "optimized",
+      "requests": 884722,
+      "successes": 884722,
+      "passed": true
+    },
+    {
+      "dataset": "multilevel-benchmark-1791033569825",
+      "round": 2,
+      "mode": "direct",
+      "requests": 403051,
+      "successes": 403051,
+      "passed": true
+    },
+    {
+      "dataset": "multilevel-benchmark-1791033569825",
+      "round": 3,
+      "mode": "optimized",
+      "requests": 1279893,
+      "successes": 1279893,
+      "passed": true
+    },
+    {
+      "dataset": "multilevel-benchmark-1791033569825",
+      "round": 3,
+      "mode": "direct",
+      "requests": 450269,
+      "successes": 450269,
+      "passed": true
+    },
+    {
+      "dataset": "multilevel-benchmark-1791033569825",
+      "round": 3,
+      "mode": "ttl",
+      "requests": 585027,
+      "successes": 585027,
+      "passed": true
+    },
+    {
+      "dataset": "multilevel-benchmark-1791034324777",
+      "round": 1,
+      "mode": "direct",
+      "requests": 178516,
+      "successes": 178516,
+      "passed": true
+    },
+    {
+      "dataset": "multilevel-benchmark-1791034324777",
+      "round": 1,
+      "mode": "ttl",
+      "requests": 195458,
+      "successes": 195458,
+      "passed": true
+    },
+    {
+      "dataset": "multilevel-benchmark-1791034324777",
+      "round": 1,
+      "mode": "optimized",
+      "requests": 270942,
+      "successes": 270942,
+      "passed": true
+    },
+    {
+      "dataset": "multilevel-benchmark-1791034324777",
+      "round": 2,
+      "mode": "ttl",
+      "requests": 186132,
+      "successes": 186132,
+      "passed": true
+    },
+    {
+      "dataset": "multilevel-benchmark-1791034324777",
+      "round": 2,
+      "mode": "optimized",
+      "requests": 251898,
+      "successes": 251898,
+      "passed": true
+    },
+    {
+      "dataset": "multilevel-benchmark-1791034324777",
+      "round": 2,
+      "mode": "direct",
+      "requests": 157525,
+      "successes": 157525,
+      "passed": true
+    },
+    {
+      "dataset": "multilevel-benchmark-1791034324777",
+      "round": 3,
+      "mode": "optimized",
+      "requests": 231906,
+      "successes": 231906,
+      "passed": true
+    },
+    {
+      "dataset": "multilevel-benchmark-1791034324777",
+      "round": 3,
+      "mode": "direct",
+      "requests": 143431,
+      "successes": 143431,
+      "passed": true
+    },
+    {
+      "dataset": "multilevel-benchmark-1791034324777",
+      "round": 3,
+      "mode": "ttl",
+      "requests": 85532,
+      "successes": 85527,
+      "passed": true
+    }
+  ]
+}

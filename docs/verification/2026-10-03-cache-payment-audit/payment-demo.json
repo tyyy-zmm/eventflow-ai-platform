@@ -1,0 +1,27 @@
+{
+  "at": "2026-10-03T13:46:29.024Z",
+  "mode": "simulated provider; no real money",
+  "checks": [
+    {
+      "scenario": "payment and duplicate callback",
+      "passed": true
+    },
+    {
+      "scenario": "close before payment and refund replay",
+      "passed": true
+    },
+    {
+      "scenario": "background delayed close then late payment refund",
+      "passed": true
+    },
+    {
+      "scenario": "Redis stock converges after two closed orders and one paid order",
+      "passed": true
+    }
+  ],
+  "invariants": {
+    "stateViolations": 0,
+    "stockViolations": 0,
+    "pending": 0
+  }
+}

@@ -33,7 +33,7 @@ case "${1:-test}" in
   reliability-test) export UPGRADE_RELIABILITY_INTEGRATION=true; exec "${maven[@]}" -Dtest=ReliabilityIntegrationTest test ;;
   customer-test) export UPGRADE_INTEGRATION=true; exec "${maven[@]}" -Dtest=CustomerHttpTest test ;;
   start) exec java -Xmx384m -jar target/life-choice-backend-1.0.0.jar "${@:2}" ;;
-  hotspot-experiment|pipeline-experiment|pipeline-crash|verification-experiment|multilevel-benchmark) exec node "scripts/$1.mjs" "${@:2}" ;;
+  hotspot-experiment|pipeline-experiment|pipeline-crash|verification-experiment|multilevel-benchmark|payment-demo) exec node "scripts/$1.mjs" "${@:2}" ;;
   benchmark) exec node scripts/benchmark.mjs "${@:2}" ;;
   redis-db-benchmark) exec node scripts/redis-db-benchmark.mjs "${@:2}" ;;
   full-chain-benchmark) exec node scripts/full-chain-benchmark.mjs "${@:2}" ;;

@@ -1,5 +1,6 @@
 import {spawn} from 'node:child_process';
-import {mkdirSync,openSync,closeSync} from 'node:fs';
+import {mkdirSync,openSync,closeSync,readFileSync} from 'node:fs';
+import {createHash} from 'node:crypto';
 import path from 'node:path';
 import os from 'node:os';
 import {performance} from 'node:perf_hooks';
@@ -10,6 +11,10 @@ const smoke=process.argv.includes('--smoke');
 const seconds=smoke?2:Number(process.env.CACHE_BENCH_SECONDS??30);
 const rounds=smoke?1:Number(process.env.CACHE_BENCH_ROUNDS??3);
 const concurrency=Number(process.env.CACHE_BENCH_CONCURRENCY??8);
+const shopCount=Number(process.env.CACHE_BENCH_SHOPS??1);
+const authMode=process.env.CACHE_BENCH_AUTH??'bearer';
+if(!['bearer','cookie'].includes(authMode)) throw new Error('Invalid auth mode');
+if(!Number.isInteger(shopCount)||shopCount<1||shopCount>100) throw new Error('Invalid shop count');
 if(!Number.isFinite(seconds)||seconds<1||!Number.isInteger(rounds)||rounds<1||!Number.isInteger(concurrency)||concurrency<1||concurrency>48)
   throw new Error('Invalid benchmark settings');
 const bases=['http://127.0.0.1:18093','http://127.0.0.1:18094'];
@@ -20,9 +25,9 @@ const adminAuthorization=`Bearer ${token(900,'admin')}`;
 const userAuthorizations=Array.from({length:1024},(_,i)=>`Bearer ${token(4_000_000+i,'user')}`);
 let requestSequence=0;
 async function request(instance,route,{method='GET',body,authorization=adminAuthorization}={}) {
-  const response=await fetch(bases[instance]+route,{method,headers:{Authorization:authorization,'Content-Type':'application/json'},
+  const response=await fetch(bases[instance]+route,{method,headers:{...(authorization.startsWith('Cookie ')?{Cookie:authorization.slice(7)}:{Authorization:authorization}),'Content-Type':'application/json'},
     body:body===undefined?undefined:JSON.stringify(body),signal:AbortSignal.timeout(5000)});
-  const data=await response.json();return {status:response.status,data};
+  const data=await response.json();return {status:response.status,data,cookie:response.headers.get('set-cookie')};
 }
 async function checked(instance,route,options) {
   const response=await request(instance,route,options);
@@ -50,6 +55,10 @@ const percentile=(values,p)=>values.length?[...values].sort((a,b)=>a-b)[Math.min
 try {
   await launch(0);await launch(1);
   const id=Date.now();
+  for(let n=1;n<shopCount;n++) {
+    await checked(0,`/v2/admin/fixtures/${id+n}?stock=10`,{method:'POST'});
+    await checked(0,`/v2/admin/shops/${id+n}`,{method:'PUT',body:{name:'Changed across instances',description:'Synthetic benchmark'}});
+  }
   await checked(0,`/v2/admin/fixtures/${id}?stock=10`,{method:'POST'});
   await checked(1,`/v2/shops/${id}`);
   await checked(0,`/v2/admin/shops/${id}`,{method:'PUT',body:{name:'Changed across instances',description:'Synthetic benchmark'}});
@@ -59,30 +68,47 @@ try {
     await sleep(10);
   } while(performance.now()-updated<2000);
   if(!observed) throw new Error('Cross-instance invalidation failed');
+  const invalidationObservedMs=performance.now()-updated;
+  if(authMode==='cookie') {
+    userAuthorizations.length=0;
+    for(let n=0;n<128;n++) {
+      let registered;
+      for(let attempt=0;attempt<20;attempt++) {
+        registered=await request(n%2,'/v2/auth/register',{method:'POST',body:{username:`bench_${id}_${n}`,password:`local-benchmark-${id}-${n}`,displayName:'Synthetic benchmark'}});
+        if(registered.status!==429) break;
+        await sleep(5000);
+      }
+      if(registered.status!==201 || !registered.cookie) throw new Error(`Benchmark session registration failed: status=${registered.status}, code=${registered.data.error}`);
+      userAuthorizations.push('Cookie '+registered.cookie.split(';')[0]);
+    }
+  }
   save(path.join(dir,'environment.json'),{date:new Date().toISOString(),node:process.version,platform:os.platform(),arch:os.arch(),cpu:os.cpus()[0]?.model,
-    manifest:sourceManifest(),cpuCount:os.cpus().length,totalMemory:os.totalmem(),hostLoad:os.loadavg(),instances:2,heapPerInstance:'384m',concurrency,seconds,rounds,smoke,syntheticUsers:1024,invalidationObservedMs:performance.now()-updated,
-    scope:'Closed-loop authenticated HTTP on one host; successful shop reads only. Not maximum capacity or order TPS.'});
+    manifest:sourceManifest(),jarSha256:createHash('sha256').update(readFileSync(path.join(root,'target/life-choice-backend-1.0.0.jar'))).digest('hex'),authMode,shopCount,cpuCount:os.cpus().length,totalMemory:os.totalmem(),hostLoad:os.loadavg(),instances:2,heapPerInstance:'384m',concurrency,seconds,rounds,smoke,syntheticUsers:userAuthorizations.length,invalidationObservedMs,
+    scope:'Closed-loop authenticated HTTP on one host; successful shop reads only. Not maximum capacity or order TPS. Bearer mode excludes cookie session database lookup; cookie mode includes it.'});
   const modes=['direct','ttl','optimized'];
   for(let round=0;round<rounds;round++) for(let offset=0;offset<modes.length;offset++) {
     const mode=modes[(round+offset)%modes.length];
-    const route=mode==='optimized'?`/v2/shops/${id}`:`/v2/benchmark/${mode}/${id}`;
-    for(let i=0;i<100;i++) await checked(i%2,route,{authorization:userAuthorizations[i%userAuthorizations.length]});
+    const routeFor=shop=>mode==='optimized'?`/v2/shops/${shop}`:`/v2/benchmark/${mode}/${shop}`;
+    for(let i=0;i<Math.max(100,shopCount*2);i++) await checked(i%2,routeFor(id+i%shopCount),{authorization:userAuthorizations[i%userAuthorizations.length]});
     const before=await Promise.all(bases.map((_,i)=>checked(i,'/v2/admin/status')));
     const samples=[],started=performance.now();
     await Promise.all(Array.from({length:concurrency},(_,worker)=>(async()=>{
       while(performance.now()-started<seconds*1000) {
         const sent=performance.now();
-        try {const r=await request(worker%2,route,{authorization:userAuthorizations[requestSequence++%userAuthorizations.length]});samples.push({latencyMs:performance.now()-sent,status:r.status});}
+        const sequence=requestSequence++,shop=id+sequence%shopCount;
+        try {const r=await request(worker%2,routeFor(shop),{authorization:userAuthorizations[sequence%userAuthorizations.length]});const valid=r.status===200 && r.data.id===shop && r.data.name==='Changed across instances' && r.data.description==='Synthetic benchmark';samples.push({latencyMs:performance.now()-sent,status:r.status,valid,...(!valid?{errorCode:r.data.error??'INVALID_BODY'}:{})});}
         catch(error) {samples.push({latencyMs:performance.now()-sent,status:0,error:error.message});}
       }
     })()));
     const elapsedSeconds=(performance.now()-started)/1000;
     const after=await Promise.all(bases.map((_,i)=>checked(i,'/v2/admin/status')));
-    const success=samples.filter(s=>s.status===200),statuses={};
+    const success=samples.filter(s=>s.valid===true),statuses={};
     for(const sample of samples) statuses[sample.status]=(statuses[sample.status]??0)+1;
     const delta=key=>after.reduce((sum,item,i)=>sum+item.cache[key]-before[i].cache[key],0);
     const result={round:round+1,mode,elapsedSeconds,requests:samples.length,statuses,errorRate:1-success.length/samples.length,successfulQps:success.length/elapsedSeconds,
       successP95Ms:percentile(success.map(s=>s.latencyMs),.95),successP99Ms:percentile(success.map(s=>s.latencyMs),.99),
+      meanSuccessLatencyMs:success.reduce((n,s)=>n+s.latencyMs,0)/success.length,
+      invalidBodies:samples.filter(s=>s.status===200 && !s.valid).length,
       databaseReads:delta('databaseReads'),localHits:delta('localHits'),redisHits:delta(mode==='ttl'?'ttlHits':'hits')};
     results.push(result);save(path.join(dir,`${round+1}-${mode}-raw.json`),samples);save(path.join(dir,'results.json'),results);
     console.log(JSON.stringify(result));

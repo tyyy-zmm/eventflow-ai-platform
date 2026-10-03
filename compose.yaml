@@ -72,6 +72,8 @@ services:
       KAFKA_BOOTSTRAP_SERVERS: kafka:29092
       APP_AUTH_SECRET: ${APP_AUTH_SECRET}
       METRICS_TOKEN: ${METRICS_TOKEN:-local-observability-token-change-me-2026}
+      SANDBOX_PAYMENTS: ${SANDBOX_PAYMENTS:-false}
+      CLOSE_QUEUE_KEY: ${CLOSE_QUEUE_KEY:-ux:close:due}
       COOKIE_SECURE: ${COOKIE_SECURE:-false}
       DEEPSEEK_API_KEY: ${DEEPSEEK_API_KEY:-}
       PLANNING_MODE: ${PLANNING_MODE:-stub}

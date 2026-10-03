@@ -1,0 +1,165 @@
+[
+  {
+    "round": 1,
+    "mode": "direct",
+    "elapsedSeconds": 30.001056125000016,
+    "requests": 178516,
+    "statuses": {
+      "200": 178516
+    },
+    "errorRate": 0,
+    "successfulQps": 5950.323857140543,
+    "successP95Ms": 2.227041999998619,
+    "successP99Ms": 3.3665000000037253,
+    "meanSuccessLatencyMs": 1.3442916253612944,
+    "invalidBodies": 0,
+    "databaseReads": 178516,
+    "localHits": 0,
+    "redisHits": 0
+  },
+  {
+    "round": 1,
+    "mode": "ttl",
+    "elapsedSeconds": 30.00081358399999,
+    "requests": 195458,
+    "statuses": {
+      "200": 195458
+    },
+    "errorRate": 0,
+    "successfulQps": 6515.089980901102,
+    "successP95Ms": 1.804541000019526,
+    "successP99Ms": 2.5617500000225846,
+    "meanSuccessLatencyMs": 1.2278201451002273,
+    "invalidBodies": 0,
+    "databaseReads": 40,
+    "localHits": 0,
+    "redisHits": 195418
+  },
+  {
+    "round": 1,
+    "mode": "optimized",
+    "elapsedSeconds": 30.00043504099999,
+    "requests": 270942,
+    "statuses": {
+      "200": 270942
+    },
+    "errorRate": 0,
+    "successfulQps": 9031.269034256273,
+    "successP95Ms": 1.611084000003757,
+    "successP99Ms": 2.4012910000164993,
+    "meanSuccessLatencyMs": 0.8857126700474759,
+    "invalidBodies": 0,
+    "databaseReads": 120,
+    "localHits": 269575,
+    "redisHits": 1367
+  },
+  {
+    "round": 2,
+    "mode": "ttl",
+    "elapsedSeconds": 30.00147787499998,
+    "requests": 186132,
+    "statuses": {
+      "200": 186132
+    },
+    "errorRate": 0,
+    "successfulQps": 6204.094370801063,
+    "successP95Ms": 1.8817920000001322,
+    "successP99Ms": 2.779917000007117,
+    "meanSuccessLatencyMs": 1.289371336863103,
+    "invalidBodies": 0,
+    "databaseReads": 40,
+    "localHits": 0,
+    "redisHits": 186092
+  },
+  {
+    "round": 2,
+    "mode": "optimized",
+    "elapsedSeconds": 30.000750500000024,
+    "requests": 251898,
+    "statuses": {
+      "200": 251898
+    },
+    "errorRate": 0,
+    "successfulQps": 8396.389950311403,
+    "successP95Ms": 1.706917000003159,
+    "successP99Ms": 2.643500000005588,
+    "meanSuccessLatencyMs": 0.9526969493366397,
+    "invalidBodies": 0,
+    "databaseReads": 120,
+    "localHits": 250546,
+    "redisHits": 1352
+  },
+  {
+    "round": 2,
+    "mode": "direct",
+    "elapsedSeconds": 30.001213916000037,
+    "requests": 157525,
+    "statuses": {
+      "200": 157525
+    },
+    "errorRate": 0,
+    "successfulQps": 5250.620872910408,
+    "successP95Ms": 2.2172080000163987,
+    "successP99Ms": 3.2845000000088476,
+    "meanSuccessLatencyMs": 1.5234979479701305,
+    "invalidBodies": 0,
+    "databaseReads": 157525,
+    "localHits": 0,
+    "redisHits": 0
+  },
+  {
+    "round": 3,
+    "mode": "optimized",
+    "elapsedSeconds": 30.000818625000015,
+    "requests": 231906,
+    "statuses": {
+      "200": 231906
+    },
+    "errorRate": 0,
+    "successfulQps": 7729.989067923305,
+    "successP95Ms": 1.8868340000044554,
+    "successP99Ms": 2.846124999981839,
+    "meanSuccessLatencyMs": 1.0348203027476301,
+    "invalidBodies": 0,
+    "databaseReads": 120,
+    "localHits": 230549,
+    "redisHits": 1357
+  },
+  {
+    "round": 3,
+    "mode": "direct",
+    "elapsedSeconds": 30.001146791999986,
+    "requests": 143431,
+    "statuses": {
+      "200": 143431
+    },
+    "errorRate": 0,
+    "successfulQps": 4780.850578626777,
+    "successP95Ms": 2.5714589999988675,
+    "successP99Ms": 4.338249999971595,
+    "meanSuccessLatencyMs": 1.6732040615557064,
+    "invalidBodies": 0,
+    "databaseReads": 143431,
+    "localHits": 0,
+    "redisHits": 0
+  },
+  {
+    "round": 3,
+    "mode": "ttl",
+    "elapsedSeconds": 30.001189042000043,
+    "requests": 85532,
+    "statuses": {
+      "200": 85527,
+      "503": 5
+    },
+    "errorRate": 0.0000584576532759451,
+    "successfulQps": 2850.7870098170715,
+    "successP95Ms": 4.937541000021156,
+    "successP99Ms": 9.434292000019923,
+    "meanSuccessLatencyMs": 2.7734479426380236,
+    "invalidBodies": 0,
+    "databaseReads": 40,
+    "localHits": 0,
+    "redisHits": 85487
+  }
+]

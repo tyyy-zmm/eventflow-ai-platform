@@ -57,6 +57,8 @@ spring:
 upgrade:
   auth-secret: ${APP_AUTH_SECRET:${UPGRADE_AUTH_SECRET}}
   metrics-token: ${METRICS_TOKEN:}
+  sandbox-payments: ${SANDBOX_PAYMENTS:false}
+  close-queue-key: ${CLOSE_QUEUE_KEY:ux:close:due}
   topic: ${UPGRADE_TOPIC:upgrade-orders-v1}
   jobs: true
   compact-transactions: true

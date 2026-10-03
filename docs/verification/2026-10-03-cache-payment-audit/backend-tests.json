@@ -1,0 +1,9 @@
+{
+  "command": "bash backend/scripts/verification.sh package",
+  "tests": 138,
+  "failures": 0,
+  "errors": 0,
+  "skipped": 0,
+  "migration": "V11",
+  "includes": ["MySQL", "Redis", "Kafka", "HTTP", "payment cancellation race", "close payment race", "refund retry", "transaction rollback"]
+}

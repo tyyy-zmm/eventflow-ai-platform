@@ -1,0 +1,31 @@
+{
+  "checks": [
+    {
+      "file": "src/main/java/com/hmdp/upgrade/ShopCache.java",
+      "sha256": "3eb57f21f9a110e53c3f9d49ad5f484fc718050d59079a2da0fbab4bd0efd21e",
+      "matchesMeasuredBuildSource": true
+    },
+    {
+      "file": "src/main/java/com/hmdp/upgrade/ShopBloom.java",
+      "sha256": "8e039d520fe4547ff3621b754dfc38aaf0412b5a356089b7ba093f5c2eebcb6c",
+      "matchesMeasuredBuildSource": true
+    },
+    {
+      "file": "src/main/java/com/hmdp/upgrade/CacheCircuit.java",
+      "sha256": "fb525b1b57c473410d07d6ce79d069aff4d23224d104e03b00f2d43127ace640",
+      "matchesMeasuredBuildSource": true
+    },
+    {
+      "file": "src/main/java/com/hmdp/upgrade/Auth.java",
+      "sha256": "da122a38fc9299882f15f277b4737740e8d7a25f8acc646144fbbb21f4edc9d2",
+      "matchesMeasuredBuildSource": true
+    },
+    {
+      "file": "src/main/java/com/hmdp/upgrade/Api.java",
+      "sha256": "4772b59483af767b6b4ad7b53b0ecfc3f7470762bf00b62339be2bafee8772c0",
+      "matchesMeasuredBuildSource": true
+    }
+  ],
+  "finalJarSha256": "0985d6577594fff613a98cf6d65fab5323877b1ae1b55bdc5ed35cbef96e60f7",
+  "note": "Final build adds multi-refund state correction; cache and authentication sources match measured build."
+}

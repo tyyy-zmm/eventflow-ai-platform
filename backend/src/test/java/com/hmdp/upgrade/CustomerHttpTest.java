@@ -15,7 +15,7 @@ import static org.junit.jupiter.api.Assertions.*;
 
 @EnabledIfEnvironmentVariable(named="UPGRADE_INTEGRATION",matches="true")
 @org.springframework.test.annotation.DirtiesContext(classMode=org.springframework.test.annotation.DirtiesContext.ClassMode.AFTER_CLASS)
-@SpringBootTest(webEnvironment=SpringBootTest.WebEnvironment.RANDOM_PORT,properties={"upgrade.demo-data=true","upgrade.jobs=true","upgrade.benchmark=false","upgrade.planning.mode=stub"})
+@SpringBootTest(webEnvironment=SpringBootTest.WebEnvironment.RANDOM_PORT,properties={"upgrade.demo-data=true","upgrade.jobs=true","upgrade.benchmark=false","upgrade.planning.mode=stub","upgrade.sandbox-payments=true"})
 class CustomerHttpTest {
     @LocalServerPort int port;
     @Autowired TestRestTemplate http;
@@ -57,6 +57,25 @@ class CustomerHttpTest {
         var login=request(HttpMethod.POST,"/auth/login",null,Map.of("username",client.username(),"password",PASSWORD));
         assertEquals(200,login.getStatusCode().value());assertNotEquals(client.cookie(),login.getHeaders().getFirst("Set-Cookie").split(";")[0]);
         assertEquals(client.id(),((Map)login.getBody().get("user")).get("id"));
+    }
+    @Test void sandboxPaymentHttpChecksOwnerCsrfAmountAndLateReceipt() throws Exception {
+        var alice=register();var bob=register();String r=(String)submit(alice,activity(1),UUID.randomUUID().toString()).get("id");settled(alice,r);
+        var created=request(HttpMethod.POST,"/account/payments",alice,Map.of("requestId",r));assertEquals(200,created.getStatusCode().value());
+        String p=(String)created.getBody().get("id"),route="/account/payments/"+p+"/sandbox-receipt",channel="http_"+UUID.randomUUID();
+        assertEquals(404,request(HttpMethod.GET,"/account/payments/"+p,bob,null).getStatusCode().value());
+        assertEquals(403,request(HttpMethod.POST,route,new Client(alice.cookie(),"wrong",alice.username(),alice.id()),Map.of("channelId",channel,"amountCents",990)).getStatusCode().value());
+        assertEquals(400,request(HttpMethod.POST,route,alice,Map.of("channelId",channel,"amountCents",1)).getStatusCode().value());
+        assertEquals(409,request(HttpMethod.POST,"/requests/"+r+"/confirm",alice,null).getStatusCode().value());
+        request(HttpMethod.POST,"/requests/"+r+"/cancel",alice,null);
+        var paid=request(HttpMethod.POST,route,alice,Map.of("channelId",channel,"amountCents",990));assertEquals(200,paid.getStatusCode().value());
+        assertTrue(Set.of("REFUND_PENDING","REFUNDED").contains(paid.getBody().get("outcome")));
+        for(int i=0;i<40;i++) {
+            var status=request(HttpMethod.GET,"/account/payments/"+p,alice,null);
+            if("REFUNDED".equals(status.getBody().get("state"))) break;
+            Thread.sleep(100);
+        }
+        assertEquals("REFUNDED",request(HttpMethod.GET,"/account/payments/"+p,alice,null).getBody().get("state"));
+        assertEquals("REFUNDED",request(HttpMethod.POST,route,alice,Map.of("channelId",channel,"amountCents",990)).getBody().get("outcome"));
     }
     @Test void publicCatalogFiltersAndLiveStock() {
         var list=request(HttpMethod.GET,"/catalog/shops?q=西岸",null,null);assertEquals(200,list.getStatusCode().value());

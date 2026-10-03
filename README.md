@@ -11,6 +11,7 @@
 - 商家：列表、筛选、详情、活动余量；基础商家信息使用 Caffeine → Redis → MySQL，多级缓存有过期、失效通知和有界回源。
 - 秒杀：Redis Lua 预扣，MySQL 请求与 Outbox 同事务，Kafka 异步建单，幂等消费；取消与到期释放库存，补偿可重试，恢复 epoch 阻止旧请求穿过库存重建。
 - 用户：Cookie 会话、CSRF、订单查询、确认、取消、丢失响应后的原请求重试。
+- 延迟关单与模拟支付：Redis ZSet 到期触发、MySQL 持久化任务兜底，CAS 状态更新和事务库存回补；模拟付款重复通知及关单后付款退款。通过 `SANDBOX_PAYMENTS=true` 开启后端模拟接口，详见[流程与 API](docs/learning/06-延迟关单与模拟支付.md)。不涉及真实资金。
 - 历史订单：交易库保留库存与订单的本地事务，后台将订单投影到按用户路由的 32 张查询表；版本号抵御重复与乱序，定时核对负责缺失修复。
 - 候补：售罄后排队，释放库存后走同一套预占与建单规则。候补不承诺严格 FIFO，也不绕过一人一单。
 - 规划：Discovery、Planner、Review 生成只读行程建议，Java 校验时间、预算和余量。默认禁用，可用 stub 演示；建议不占库存，不代表下单成功。
@@ -44,6 +45,8 @@ docker compose --profile observability up -d --build
 Prometheus 默认位于 `http://127.0.0.1:29090`，Grafana 位于 `http://127.0.0.1:23000`。请在 `.env` 配置独立的 `METRICS_TOKEN` 和 `GRAFANA_ADMIN_PASSWORD`；Prometheus 使用只允许读取 `/actuator/prometheus` 的指标令牌，不能访问管理接口。
 
 ## 测试与迁移
+
+V11 新增持久化关单任务、模拟支付流水和退款任务；现有待确认订单会补入关单任务。最新 138 项测试及缓存数据复核见[本轮验收](docs/verification/2026-10-03-cache-payment-audit/README.md)。
 
 ```bash
 bash run.sh test    # 单元测试；外部中间件测试跳过

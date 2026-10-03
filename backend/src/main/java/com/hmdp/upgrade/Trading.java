@@ -29,6 +29,8 @@ public class Trading {
     private Faults faults;
     @org.springframework.beans.factory.annotation.Autowired(required=false)
     private OrderProjection projection;
+    @org.springframework.beans.factory.annotation.Autowired(required=false)
+    private CloseTasks closeTasks;
     public Trading(JdbcTemplate db, Transactions tx) { this.db=db; this.tx=tx; }
     static String uuid() { return UUID.randomUUID().toString(); }
     private <T> T read(PipelineMetrics.Stage stage,String sql,Class<T> type,Object... args) {
@@ -167,6 +169,7 @@ public class Trading {
         write(SQL_ORDER_INSERT,"INSERT INTO ux_order(id,request_id,activity_id,user_id,price_cents,state,confirm_until,created_at) VALUES(?,?,?,?,?,'PENDING_CONFIRM',?,?)",
             uuid(),id,activity,r.userId(),a.get("price_cents"),Timestamp.from(now.plusSeconds(300)),Timestamp.from(now));
         if(projection!=null) projection.changed((String)order(r.userId(),id).get("id"));
+        if(closeTasks!=null) closeTasks.created(id,r.userId(),now.plusSeconds(300));
         return finish(r,"SUCCEEDED",null,now);
     }
     private Request finish(Request request,String state,String reason,Instant now) {
@@ -191,6 +194,10 @@ public class Trading {
         return rows.get(0);
     }
     public Map<String,Object> transition(long user,String request,String action) {
+        return transition(user,request,action,false);
+    }
+    Map<String,Object> paymentConfirm(long user,String request) {return transition(user,request,"confirm",true);}
+    private Map<String,Object> transition(long user,String request,String action,boolean payment) {
         if(!List.of("confirm","cancel","expire").contains(action)) throw new Problem(400,"INVALID_ACTION");
         Request r=result(user,request);
         return tx.run(()->{
@@ -198,12 +205,15 @@ public class Trading {
             var o=order(user,request);
             String state=(String)o.get("state");
             if(!state.equals("PENDING_CONFIRM")) return o;
+            if(action.equals("confirm") && !payment && closeTasks!=null && db.queryForObject("SELECT COUNT(*) FROM ux_payment WHERE request_id=?",Integer.class,request)>0)
+                throw new Problem(409,"PAYMENT_REQUIRED");
             Instant now=now();
             boolean expired=!now.isBefore(instant(o,"confirm_until"));
             if(action.equals("expire") && !expired) return o;
             String next=expired ? "EXPIRED" : action.equals("confirm") ? "CONFIRMED" : "CANCELLED";
             int changed=db.update("UPDATE ux_order SET state=? WHERE id=? AND state='PENDING_CONFIRM'",next,o.get("id"));
             if(changed==1 && projection!=null) projection.changed((String)o.get("id"));
+            if(changed==1 && closeTasks!=null) closeTasks.completed(request);
             if(changed==1 && !next.equals("CONFIRMED")) {
                 db.update("UPDATE ux_activity SET available=available+1 WHERE id=?",r.activityId());
                 reservationAction(r.id(),"RESTORE",now);
@@ -227,6 +237,7 @@ public class Trading {
             if(!now().isBefore(locked.deadline())) finish(locked,"EXPIRED","PROCESS_DEADLINE",now());
             return null;
         });
+        if(closeTasks!=null) return; // Durable delayed-close workers own order expiry.
         var orders=db.queryForList("SELECT request_id,user_id FROM ux_order WHERE state='PENDING_CONFIRM' AND confirm_until<=CURRENT_TIMESTAMP(3) LIMIT 100");
         for(var o:orders) transition(((Number)o.get("user_id")).longValue(),(String)o.get("request_id"),"expire");
     }

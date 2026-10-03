@@ -1,0 +1,41 @@
+{
+  "rounds": 3,
+  "seconds": 60,
+  "concurrency": 8,
+  "aggregate": {
+    "direct": {
+      "medianQps": 7396.100363187421,
+      "medianP95Ms": 2.1120840000003227,
+      "medianP99Ms": 3.2840419999993173,
+      "totalDatabaseReads": 1297092,
+      "totalRequests": 1297092,
+      "errorRate": 0
+    },
+    "ttl": {
+      "medianQps": 6653.092010442047,
+      "medianP95Ms": 2.3262500000128057,
+      "medianP99Ms": 4.092167000024347,
+      "totalDatabaseReads": 96,
+      "totalRequests": 1323044,
+      "errorRate": 0
+    },
+    "optimized": {
+      "medianQps": 15002.779549447698,
+      "medianP95Ms": 1.1941250000090804,
+      "medianP99Ms": 2.7931659999885596,
+      "totalDatabaseReads": 35,
+      "totalRequests": 3064786,
+      "errorRate": 0
+    }
+  },
+  "comparisons": {
+    "optimizedVsDirect": {
+      "qpsRatio": 2.0284716016187354,
+      "p95Reduction": 0.43462239190823004
+    },
+    "optimizedVsRedisTtl": {
+      "qpsRatio": 2.2550085773503197,
+      "p95Reduction": 0.48667383127243125
+    }
+  }
+}

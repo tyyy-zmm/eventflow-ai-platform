@@ -31,6 +31,7 @@ function cleanup(id){
  // has drained before removal; no shared tables or Redis databases are reset.
  sql(`START TRANSACTION;
  DELETE a FROM ux_reservation_action a JOIN ux_request r ON r.id=a.request_id WHERE r.activity_id=${id};
+ DELETE c FROM ux_close_task c JOIN ux_request r ON r.id=c.request_id WHERE r.activity_id=${id};
  DELETE FROM ux_order WHERE activity_id=${id}; DELETE FROM ux_outbox WHERE activity_id=${id};
  DELETE FROM ux_request WHERE activity_id=${id}; DELETE FROM ux_reservation_epoch WHERE activity_id=${id};
  DELETE FROM ux_activity WHERE id=${id}; DELETE FROM ux_invalidation WHERE cache_key='ux:shop:{${id}}';

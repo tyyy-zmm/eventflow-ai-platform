@@ -53,6 +53,31 @@ class MiddlewareTest {
         return db.queryForObject("SELECT * FROM ux_outbox WHERE request_id=?",(s,n)->new Trading.Event(1,s.getString("id"),r.id(),r.activityId()),r.id());
     }
     void valid() { assertEquals(0L,trading.invariants().get("stockViolations"));assertEquals(0L,trading.invariants().get("stateViolations")); }
+    @Test void mysqlRedisDelayedCloseAndSandboxRefundRecoverFromLostQueue() {
+        var local=new Trading(db,tx);
+        org.springframework.test.util.ReflectionTestUtils.setField(local,"closeTasks",new CloseTasks(db));
+        var closer=new DelayedClose(db,local,redis);String queue="ux:test:close:"+next();
+        org.springframework.test.util.ReflectionTestUtils.setField(closer,"key",queue);
+        var payments=new Payments(db,tx,local);long user=next(),activity=activity(2);
+        try {
+            String r=local.accept(user,"payment_"+user,activity,true).id();
+            String p=(String)payments.create(user,r).get("id");
+            closer.enqueue();assertNotNull(redis.opsForZSet().score(queue,r));
+            var past=Timestamp.from(Instant.now().minusSeconds(1));
+            db.update("UPDATE ux_order SET confirm_until=? WHERE request_id=?",past,r);
+            db.update("UPDATE ux_close_task SET due_at=? WHERE request_id=?",past,r);
+            redis.opsForZSet().add(queue,r,past.getTime());closer.drain();closer.drain();
+            assertEquals("EXPIRED",local.order(user,r).get("state"));assertNull(redis.opsForZSet().score(queue,r));
+            payments.received(user,p,"mysql_receipt_"+user,990);payments.refunds();payments.refunds();
+            assertEquals("REFUNDED",payments.get(user,p).get("state"));
+            assertEquals(1,db.queryForObject("SELECT COUNT(*) FROM ux_sandbox_refund WHERE channel_id=?",Integer.class,"mysql_receipt_"+user));
+            String r2=local.accept(user+1,"payment_"+(user+1),activity,true).id();closer.enqueue();redis.delete(queue);
+            db.update("UPDATE ux_order SET confirm_until=? WHERE request_id=?",past,r2);
+            db.update("UPDATE ux_close_task SET due_at=? WHERE request_id=?",past,r2);
+            new DelayedClose(db,local,redis).reconcile();
+            assertEquals("EXPIRED",local.order(user+1,r2).get("state"));valid();
+        } finally {redis.delete(queue);}
+    }
     @Test void bloomCrossInstanceRegistrationAndJournalLossFailOpen() {
         var first=new ShopBloom(db,redis,tx);var second=new ShopBloom(db,redis,tx);
         first.rebuild();second.rebuild();long id=next();
