@@ -1,5 +1,7 @@
 package com.hmdp.upgrade;
 
+import static com.hmdp.upgrade.PipelineMetrics.Stage.*;
+
 import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
 import java.sql.Timestamp;
@@ -14,6 +16,10 @@ import org.springframework.stereotype.Service;
 
 @Service
 public class Trading {
+    @org.springframework.beans.factory.annotation.Autowired(required=false)
+    private PipelineMetrics telemetry=new PipelineMetrics();
+    @org.springframework.beans.factory.annotation.Value("${upgrade.compact-transactions:true}")
+    private boolean compactTransactions=true;
     public record Request(String id, long userId, long activityId, String hash, String state,
                           String reason, Instant deadline) {}
     public record Event(int schemaVersion, String eventId, String requestId, long activityId) {}
@@ -23,16 +29,22 @@ public class Trading {
     private Faults faults;
     public Trading(JdbcTemplate db, Transactions tx) { this.db=db; this.tx=tx; }
     static String uuid() { return UUID.randomUUID().toString(); }
-    Instant now() { return db.queryForObject("SELECT CURRENT_TIMESTAMP(3)", Timestamp.class).toInstant(); }
+    private <T> T read(PipelineMetrics.Stage stage,String sql,Class<T> type,Object... args) {
+        return telemetry.measure(stage,()->db.queryForObject(sql,type,args));
+    }
+    private int write(PipelineMetrics.Stage stage,String sql,Object... args) {
+        return telemetry.measure(stage,()->db.update(sql,args));
+    }
+    Instant now() { return read(SQL_CLOCK,"SELECT CURRENT_TIMESTAMP(3)", Timestamp.class).toInstant(); }
     static String hash(long activity) {
         try { return HexFormat.of().formatHex(MessageDigest.getInstance("SHA-256")
             .digest(("v1:activity:"+activity).getBytes(StandardCharsets.UTF_8))); }
         catch(Exception e) { throw new IllegalStateException(e); }
     }
     private List<Request> requests(String suffix, Object... args) {
-        return db.query("SELECT * FROM ux_request "+suffix, (r,n)->new Request(r.getString("id"),
+        return telemetry.measure(SQL_REQUEST_READ,()->db.query("SELECT * FROM ux_request "+suffix, (r,n)->new Request(r.getString("id"),
             r.getLong("user_id"),r.getLong("activity_id"),r.getString("payload_hash"),r.getString("state"),
-            r.getString("reason"),r.getTimestamp("deadline").toInstant()),args);
+            r.getString("reason"),r.getTimestamp("deadline").toInstant()),args));
     }
     public Request existing(long user, String key, long activity) {
         validate(key, activity);
@@ -49,29 +61,48 @@ public class Trading {
     static void validate(String key, long activity) {
         if(activity<=0 || key==null || !key.matches("[A-Za-z0-9_-]{8,64}")) throw new Problem(400,"INVALID_REQUEST");
     }
-    private Map<String,Object> activity(long id) {
-        var rows=db.queryForList("SELECT * FROM ux_activity WHERE id=? FOR UPDATE",id);
+    private Map<String,Object> activity(long id) { return activity(id,MAINTENANCE_LOCK_QUERY); }
+    private Map<String,Object> activity(long id,PipelineMetrics.Stage stage) {
+        // Includes pool/network/query execution as well as any row lock wait.
+        var rows=telemetry.measure(stage,()->db.queryForList("SELECT * FROM ux_activity WHERE id=? FOR UPDATE",id));
         if(rows.isEmpty()) throw new Problem(404,"ACTIVITY_NOT_FOUND");
         return rows.get(0);
     }
     private Instant instant(Map<String,Object> row,String field) { return ((Timestamp)row.get(field)).toInstant(); }
     public Request accept(long user, String key, long activity, boolean synchronous) {
+        return accept(user,key,activity,synchronous,null);
+    }
+    Request acceptReserved(long user,String key,long activity,boolean synchronous,String epoch) {
+        if(epoch==null) throw new Problem(503,"RESERVATION_RECOVERY_REQUIRED");
+        return accept(user,key,activity,synchronous,epoch);
+    }
+    private Request accept(long user,String key,long activity,boolean synchronous,String epoch) {
+        return telemetry.measure(ACCEPT_TX,()->acceptTransaction(user,key,activity,synchronous,epoch));
+    }
+    private Request acceptTransaction(long user,String key,long activity,boolean synchronous,String epoch) {
         validate(key,activity);
+        String payloadHash=hash(activity);
         try {
             return tx.run(()->{
-                var a=activity(activity);
+                var a=activity(activity,ACCEPT_LOCK_QUERY);
+                telemetry.untilTransactionCompletion(ACCEPT_LOCK_HELD);
                 Request replay=existing(user,key,activity);
                 if(replay!=null) return replay;
+                if(epoch!=null && read(SQL_EPOCH_CHECK,"SELECT COUNT(*) FROM ux_reservation_epoch WHERE activity_id=? AND epoch=?",Integer.class,activity,epoch)!=1)
+                    throw new Problem(503,"RESERVATION_EPOCH_CHANGED");
                 Instant now=now();
                 if(now.isBefore(instant(a,"starts_at")) || !now.isBefore(instant(a,"ends_at")))
                     throw new Problem(409,"ACTIVITY_CLOSED");
                 String id=uuid();
-                db.update("INSERT INTO ux_request(id,user_id,request_key,activity_id,payload_hash,state,created_at,deadline) VALUES(?,?,?,?,?,'ACCEPTED',?,?)",
-                    id,user,key,activity,hash(activity),Timestamp.from(now),a.get("process_until"));
-                if(synchronous) processLocked(id,activity,a);
-                else db.update("INSERT INTO ux_outbox(id,request_id,activity_id,next_at,created_at) VALUES(?,?,?,?,?)",
+                write(SQL_REQUEST_INSERT,"INSERT INTO ux_request(id,user_id,request_key,activity_id,payload_hash,state,created_at,deadline) VALUES(?,?,?,?,?,'ACCEPTED',?,?)",
+                    id,user,key,activity,payloadHash,Timestamp.from(now),a.get("process_until"));
+                if(synchronous) {
+                    var completed=processLocked(id,activity,a);
+                    return compactTransactions?completed:result(user,id);
+                }
+                write(SQL_OUTBOX_INSERT,"INSERT INTO ux_outbox(id,request_id,activity_id,next_at,created_at) VALUES(?,?,?,?,?)",
                     uuid(),id,activity,Timestamp.from(now),Timestamp.from(now));
-                return result(user,id);
+                return compactTransactions?new Request(id,user,activity,payloadHash,"ACCEPTED",null,instant(a,"process_until")):result(user,id);
             });
         } catch(DuplicateKeyException collision) {
             Request replay=existing(user,key,activity);
@@ -79,14 +110,44 @@ public class Trading {
             return replay;
         }
     }
+    // Serialize adjudication with accept on the same activity row. A durable terminal
+    // request fences a delayed accept even after this transaction releases the lock.
+    Request adjudicateReservation(long user,String key,long activity) {
+        return adjudicateReservation(user,key,activity,null);
+    }
+    Request adjudicateReservation(long user,String key,long activity,String epoch) {
+        validate(key,activity);
+        try {
+            return tx.run(()->{
+                activity(activity);
+                if(epoch!=null && read(SQL_EPOCH_CHECK,"SELECT COUNT(*) FROM ux_reservation_epoch WHERE activity_id=? AND epoch=?",Integer.class,activity,epoch)!=1)
+                    return null;
+                var found=requests("WHERE user_id=? AND request_key=?",user,key);
+                if(!found.isEmpty()) return found.get(0);
+                Instant now=now();String id=uuid();
+                write(SQL_REQUEST_INSERT,"INSERT INTO ux_request(id,user_id,request_key,activity_id,payload_hash,state,reason,created_at,deadline,completed_at) VALUES(?,?,?,?,?,'EXPIRED','RESERVATION_ABANDONED',?,?,?)",
+                    id,user,key,activity,hash(activity),Timestamp.from(now),Timestamp.from(now),Timestamp.from(now));
+                reservationAction(id,"RELEASE",now);
+                return result(user,id);
+            });
+        } catch(DuplicateKeyException collision) {
+            // Another activity may have claimed the globally unique user/key pair.
+            return requests("WHERE user_id=? AND request_key=?",user,key).get(0);
+        }
+    }
+    void expireForRecovery(long activity) {
+        for(var request:requests("WHERE activity_id=? AND state='ACCEPTED' FOR UPDATE",activity))
+            finish(request,"EXPIRED","RESERVATION_RECOVERY",now());
+    }
     public Request process(Event event) {
-        return tx.run(()->{
-            var a=activity(event.activityId());
-            Integer match=db.queryForObject("SELECT COUNT(*) FROM ux_outbox WHERE id=? AND request_id=? AND activity_id=?",
+        return telemetry.measure(ORDER_TX,()->tx.run(()->{
+            var a=activity(event.activityId(),ORDER_LOCK_QUERY);
+            telemetry.untilTransactionCompletion(ORDER_LOCK_HELD);
+            Integer match=read(SQL_EVENT_CHECK,"SELECT COUNT(*) FROM ux_outbox WHERE id=? AND request_id=? AND activity_id=?",
                 Integer.class,event.eventId(),event.requestId(),event.activityId());
             if(match==null || match!=1) throw new Problem(400,"EVENT_MISMATCH");
             return processLocked(event.requestId(),event.activityId(),a);
-        });
+        }));
     }
     private Request processLocked(String id,long activity,Map<String,Object> a) {
         var rows=requests("WHERE id=? AND activity_id=? FOR UPDATE",id,activity);
@@ -95,25 +156,26 @@ public class Trading {
         if(!r.state().equals("ACCEPTED")) return r;
         Instant now=now();
         if(!now.isBefore(r.deadline())) return finish(r,"EXPIRED","PROCESS_DEADLINE",now);
-        if(db.queryForObject("SELECT COUNT(*) FROM ux_order WHERE activity_id=? AND user_id=?",Integer.class,activity,r.userId())>0) {
+        if(read(SQL_DUPLICATE_CHECK,"SELECT COUNT(*) FROM ux_order WHERE activity_id=? AND user_id=?",Integer.class,activity,r.userId())>0) {
             return finish(r,"REJECTED","ALREADY_PURCHASED",now);
         }
-        if(db.update("UPDATE ux_activity SET available=available-1 WHERE id=? AND available>0",activity)==0) {
+        if(write(SQL_STOCK_UPDATE,"UPDATE ux_activity SET available=available-1 WHERE id=? AND available>0",activity)==0) {
             return finish(r,"REJECTED","SOLD_OUT",now);
         }
-        db.update("INSERT INTO ux_order(id,request_id,activity_id,user_id,price_cents,state,confirm_until,created_at) VALUES(?,?,?,?,?,'PENDING_CONFIRM',?,?)",
+        write(SQL_ORDER_INSERT,"INSERT INTO ux_order(id,request_id,activity_id,user_id,price_cents,state,confirm_until,created_at) VALUES(?,?,?,?,?,'PENDING_CONFIRM',?,?)",
             uuid(),id,activity,r.userId(),a.get("price_cents"),Timestamp.from(now.plusSeconds(300)),Timestamp.from(now));
         return finish(r,"SUCCEEDED",null,now);
     }
     private Request finish(Request request,String state,String reason,Instant now) {
-        int changed=db.update("UPDATE ux_request SET state=?,reason=?,completed_at=? WHERE id=? AND state='ACCEPTED'",
+        int changed=write(SQL_REQUEST_FINISH,"UPDATE ux_request SET state=?,reason=?,completed_at=? WHERE id=? AND state='ACCEPTED'",
             state,reason,Timestamp.from(now),request.id());
         if(changed==1) reservationAction(request.id(),"SUCCEEDED".equals(state)?"CONFIRM":
             "ALREADY_PURCHASED".equals(reason)?"RELEASE_KEEP":"RELEASE",now);
+        if(compactTransactions && changed==1) return new Request(request.id(),request.userId(),request.activityId(),request.hash(),state,reason,request.deadline());
         return requests("WHERE id=?",request.id()).get(0);
     }
     private void reservationAction(String request,String action,Instant now) {
-        db.update("""
+        write(SQL_ACTION_INSERT,"""
             INSERT INTO ux_reservation_action(id,request_id,action,next_at,created_at)
             SELECT ?,?,?,?,? WHERE NOT EXISTS(
               SELECT 1 FROM ux_reservation_action WHERE request_id=? AND action=?

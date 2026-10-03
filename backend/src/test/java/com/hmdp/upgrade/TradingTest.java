@@ -34,6 +34,50 @@ class TradingTest {
         assertEquals(0L,trading.invariants().get("stockViolations"));
         assertEquals(0L,trading.invariants().get("stateViolations"));
     }
+    @org.junit.jupiter.params.ParameterizedTest
+    @org.junit.jupiter.params.provider.ValueSource(booleans={false,true})
+    void compactAndLegacyReturnCommittedStateAndPreserveTerminalReplay(boolean compact) {
+        org.springframework.test.util.ReflectionTestUtils.setField(trading,"compactTransactions",compact);
+        var accepted=trading.accept(10,"compact001",1,false);
+        assertEquals(trading.result(10,accepted.id()),accepted);
+        var completed=trading.process(event(accepted));
+        assertEquals(trading.result(10,accepted.id()),completed);
+        assertEquals(completed,trading.process(event(accepted)));
+        trading.transition(10,accepted.id(),"cancel");
+        assertEquals(completed,trading.process(event(accepted)));
+        assertEquals("CANCELLED",trading.order(10,accepted.id()).get("state"));valid();
+    }
+    @Test void orphanAdjudicationFencesLateAccept() {
+        var terminal=trading.adjudicateReservation(1,"orphan0001",1);
+        assertEquals("EXPIRED",terminal.state());
+        assertEquals(terminal.id(),trading.accept(1,"orphan0001",1,true).id());
+        assertEquals(0,db.queryForObject("SELECT COUNT(*) FROM ux_order",Integer.class));
+        assertEquals(1,db.queryForObject("SELECT COUNT(*) FROM ux_reservation_action WHERE action='RELEASE'",Integer.class));
+        valid();
+    }
+    @Test void adjudicationDoesNotReleaseCommittedAcceptance() {
+        var accepted=trading.accept(1,"accepted01",1,false);
+        assertEquals(accepted.id(),trading.adjudicateReservation(1,"accepted01",1).id());
+        assertEquals(0,db.queryForObject("SELECT COUNT(*) FROM ux_reservation_action",Integer.class));
+        assertEquals("SUCCEEDED",trading.process(event(accepted)).state());valid();
+    }
+    @Test void adjudicationAndAcceptRaceHasSingleDurableOutcome() throws Exception {
+        var executor=Executors.newFixedThreadPool(2);
+        try {
+            for(int i=0;i<30;i++) {
+                String key="race_orphan_"+i;long user=100+i;
+                var start=new CountDownLatch(1);
+                var accept=executor.submit(()->{ start.await();return trading.accept(user,key,1,true); });
+                var expire=executor.submit(()->{ start.await();return trading.adjudicateReservation(user,key,1); });
+                start.countDown();
+                assertEquals(accept.get().id(),expire.get().id());
+                var result=trading.existing(user,key,1);
+                int orders=db.queryForObject("SELECT COUNT(*) FROM ux_order WHERE request_id=?",Integer.class,result.id());
+                assertEquals("SUCCEEDED".equals(result.state())?1:0,orders);
+            }
+            valid();
+        } finally { executor.shutdownNow(); }
+    }
     @Test void acceptedIsNotAnOrder() {
         var r=trading.accept(1,"request001",1,false);
         assertEquals("ACCEPTED",r.state());assertEquals(0,db.queryForObject("SELECT COUNT(*) FROM ux_order",Integer.class));

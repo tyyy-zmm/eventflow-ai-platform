@@ -29,19 +29,20 @@ class MiddlewareTest {
     long sequence=System.currentTimeMillis();
     long next() { return ++sequence; }
     @BeforeAll void setup() {
-        var source=new DriverManagerDataSource("jdbc:mysql://127.0.0.1:23306/upgrade?connectionTimeZone=UTC","upgrade",System.getenv("UPGRADE_DB_PASSWORD"));
+        var source=new DriverManagerDataSource(System.getenv().getOrDefault("UPGRADE_TEST_DB_URL","jdbc:mysql://127.0.0.1:23307/life_choice_verification?connectionTimeZone=UTC"),System.getenv().getOrDefault("DATABASE_USERNAME","life_choice"),System.getenv("UPGRADE_DB_PASSWORD"));
         Flyway.configure().dataSource(source).load().migrate();
         db=new JdbcTemplate(source);tx=new Transactions(new DataSourceTransactionManager(source));trading=new Trading(db,tx);
-        var config=new RedisStandaloneConfiguration("127.0.0.1",26379);config.setPassword(System.getenv("UPGRADE_REDIS_PASSWORD"));
+        var config=new RedisStandaloneConfiguration("127.0.0.1",Integer.parseInt(System.getenv().getOrDefault("REDIS_PORT","26380")));config.setPassword(System.getenv("UPGRADE_REDIS_PASSWORD"));
+        config.setDatabase(Integer.parseInt(System.getenv().getOrDefault("UPGRADE_TEST_REDIS_DB","0")));
         lettuce=new LettuceConnectionFactory(config);lettuce.afterPropertiesSet();lettuce.start();redis=new StringRedisTemplate(lettuce);
         cache=new ShopCache(db,tx,trading,redis,new ObjectMapper(),80,250,false);
         gate=new Admission(redis,db,2,10,5000,60);
         reservations=new BenchmarkReservation(redis);
-        productionReservations=new Reservations(redis,db);
-        producer=new DefaultKafkaProducerFactory<>(Map.of("bootstrap.servers","127.0.0.1:29092","acks","all",
+        productionReservations=new Reservations(redis,db,trading,tx);
+        producer=new DefaultKafkaProducerFactory<>(Map.of("bootstrap.servers",System.getenv().getOrDefault("KAFKA_BOOTSTRAP_SERVERS","127.0.0.1:29093"),"acks","all",
             "enable.idempotence",true,"key.serializer",StringSerializer.class,"value.serializer",StringSerializer.class));
         kafka=new KafkaTemplate<>(producer);
-        delivery=new Delivery(db,tx,trading,kafka,new ObjectMapper(),gate,productionReservations,"upgrade-orders-v1",false);
+        delivery=new Delivery(db,tx,trading,kafka,new ObjectMapper(),gate,productionReservations,System.getenv().getOrDefault("UPGRADE_TOPIC","life-choice-orders-v1"),false);
     }
     @AfterAll void close() { cache.close();producer.destroy();lettuce.destroy(); }
     long activity(int stock) {
@@ -115,6 +116,51 @@ class MiddlewareTest {
             assertEquals(0,db.queryForObject("SELECT COUNT(*) FROM ux_request WHERE activity_id=?",Integer.class,a));
         } finally { pool.shutdownNow(); }
     }
+    @Test void repairOrdersByDueTimeAndSkipsFutureRetries() {
+        long a=activity(3);productionReservations.prepare(a,3);
+        var requests=new java.util.ArrayList<Trading.Request>();
+        for(int i=0;i<3;i++) {
+            String key="due_order_"+a+"_"+i;
+            productionReservations.reserve(a,800+i,key,Instant.now().plusSeconds(5));
+            requests.add(trading.accept(800+i,key,a,true));
+        }
+        Instant now=Instant.now();
+        db.update("UPDATE ux_reservation_action SET next_at=? WHERE request_id=?",Timestamp.from(now.plusSeconds(3600)),requests.get(0).id());
+        db.update("UPDATE ux_reservation_action SET next_at=?,created_at=? WHERE request_id=?",Timestamp.from(now.minusSeconds(172800)),Timestamp.from(now.minusSeconds(172800)),requests.get(1).id());
+        db.update("UPDATE ux_reservation_action SET next_at=?,created_at=? WHERE request_id=?",Timestamp.from(now.minusSeconds(259200)),Timestamp.from(now.minusSeconds(86400)),requests.get(2).id());
+        org.springframework.test.util.ReflectionTestUtils.setField(productionReservations,"repairBatch",1);
+        try {
+            assertEquals(1,productionReservations.drainActions());
+            assertEquals(1,db.queryForObject("SELECT COUNT(*) FROM ux_reservation_action WHERE request_id=? AND applied_at IS NOT NULL",Integer.class,requests.get(2).id()));
+            assertEquals(0,db.queryForObject("SELECT COUNT(*) FROM ux_reservation_action WHERE request_id IN (?,?) AND applied_at IS NOT NULL",Integer.class,requests.get(0).id(),requests.get(1).id()));
+            assertEquals(1,productionReservations.drainActions());
+            assertEquals(0,db.queryForObject("SELECT COUNT(*) FROM ux_reservation_action WHERE request_id=? AND applied_at IS NOT NULL",Integer.class,requests.get(0).id()));
+        } finally {
+            org.springframework.test.util.ReflectionTestUtils.setField(productionReservations,"repairBatch",100);
+            db.update("UPDATE ux_reservation_action SET next_at=CURRENT_TIMESTAMP(3) WHERE request_id=?",requests.get(0).id());
+            productionReservations.drainActions();
+        }
+        assertEquals(0,productionReservations.remaining(a));valid();
+    }
+    @Test void delayedConfirmAfterRestoreDoesNotConsumeStockAgain() {
+        long a=activity(1);String key="restore_first_"+a;productionReservations.prepare(a,1);
+        productionReservations.reserve(a,811,key,Instant.now().plusSeconds(5));
+        var request=trading.accept(811,key,a,true);trading.transition(811,request.id(),"cancel");
+        Instant now=Instant.now();
+        db.update("UPDATE ux_reservation_action SET next_at=? WHERE request_id=? AND action='CONFIRM'",Timestamp.from(now.minusSeconds(30)),request.id());
+        db.update("UPDATE ux_reservation_action SET next_at=? WHERE request_id=? AND action='RESTORE'",Timestamp.from(now.minusSeconds(60)),request.id());
+        org.springframework.test.util.ReflectionTestUtils.setField(productionReservations,"repairBatch",1);
+        try {
+            assertEquals(1,productionReservations.drainActions());
+            assertEquals("4",productionReservations.state(a,811,key));assertEquals(1,productionReservations.remaining(a));
+            assertEquals(0,db.queryForObject("SELECT COUNT(*) FROM ux_reservation_action WHERE request_id=? AND action='CONFIRM' AND applied_at IS NOT NULL",Integer.class,request.id()));
+            productionReservations.drainActions();
+            assertEquals("4",productionReservations.state(a,811,key));assertEquals(1,productionReservations.remaining(a));
+        } finally {
+            org.springframework.test.util.ReflectionTestUtils.setField(productionReservations,"repairBatch",100);productionReservations.drainActions();
+        }
+        valid();
+    }
     @Test void productionReservationConfirmAndCancelRestoreAreIdempotent() {
         long a=activity(1);String key="production_"+a;productionReservations.prepare(a,1);
         assertEquals(Reservations.Decision.ADMITTED,productionReservations.reserve(a,77,key,Instant.now().plusSeconds(5)).decision());
@@ -128,11 +174,20 @@ class MiddlewareTest {
         assertEquals(Reservations.Decision.ALREADY_PURCHASED,productionReservations.reserve(a,77,key+"_new",Instant.now().plusSeconds(5)).decision());
         valid();
     }
+    int fullReconciliationSweep() {
+        long initial=((Number)productionReservations.settings().get("completedSweeps")).longValue();int repaired=0;
+        int limit=db.queryForObject("SELECT COUNT(*) FROM ux_reservation_epoch",Integer.class)+2;
+        for(int i=0;i<limit;i++) {
+            repaired+=productionReservations.reconcileStale();
+            if(((Number)productionReservations.settings().get("completedSweeps")).longValue()>initial) return repaired;
+        }
+        throw new AssertionError("Sweep did not finish within activity count bound");
+    }
     @Test void orphanReservationIsReleasedByReconciliation() throws Exception {
         long a=activity(1);String key="orphan_"+a;productionReservations.prepare(a,1);
         productionReservations.reserve(a,88,key,Instant.now().minusSeconds(10));
         assertEquals(0,productionReservations.remaining(a));
-        assertEquals(1,productionReservations.reconcileStale());
+        fullReconciliationSweep();fullReconciliationSweep();
         assertEquals(1,productionReservations.remaining(a));assertEquals("3",productionReservations.state(a,88,key));
         assertEquals(Reservations.Decision.ADMITTED,productionReservations.reserve(a,88,key+"_retry",Instant.now().plusSeconds(5)).decision());
     }
@@ -140,7 +195,7 @@ class MiddlewareTest {
         long a=activity(1);String key="accepted_"+a;productionReservations.prepare(a,1);
         productionReservations.reserve(a,99,key,Instant.now().minusSeconds(10));
         var request=trading.accept(99,key,a,false);
-        assertEquals(0,productionReservations.reconcileStale());assertEquals("1",productionReservations.state(a,99,key));
+        fullReconciliationSweep();fullReconciliationSweep();assertEquals("1",productionReservations.state(a,99,key));
         trading.process(event(request));productionReservations.drainActions();
         assertEquals("2",productionReservations.state(a,99,key));valid();
     }
@@ -213,7 +268,7 @@ class MiddlewareTest {
         long id=next();String stock="seckill:stock:"+id,users="seckill:order:"+id;
         redis.opsForValue().set(stock,"1");
         try {
-            String source=java.nio.file.Files.readString(java.nio.file.Path.of("../src/main/resources/seckill.lua"));
+            String source=java.nio.file.Files.readString(java.nio.file.Path.of("src/test/resources/baseline/original-seckill.lua"));
             var original=new org.springframework.data.redis.core.script.DefaultRedisScript<>(source,Long.class);
             long streamBefore=Boolean.TRUE.equals(redis.hasKey("stream.orders"))?redis.opsForStream().size("stream.orders"):0;
             assertEquals(0L,redis.execute(original,List.of(),""+id,"123","456"));
@@ -248,7 +303,7 @@ class MiddlewareTest {
     }
     @Test void realKafkaDuplicateMessagesCommitAfterDatabase() throws Exception {
         String topic="upgrade-it-"+next();long a=activity(1);var r=trading.accept(7,"kafka_"+a,a,false);var e=event(r);
-        try(var consumer=new KafkaConsumer<String,String>(Map.of("bootstrap.servers","127.0.0.1:29092","group.id",topic,
+        try(var consumer=new KafkaConsumer<String,String>(Map.of("bootstrap.servers",System.getenv().getOrDefault("KAFKA_BOOTSTRAP_SERVERS","127.0.0.1:29093"),"group.id",topic,
             "auto.offset.reset","earliest","enable.auto.commit",false,"key.deserializer",StringDeserializer.class,"value.deserializer",StringDeserializer.class))) {
             consumer.subscribe(List.of(topic));
             String body=new ObjectMapper().writeValueAsString(e);

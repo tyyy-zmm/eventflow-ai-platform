@@ -21,7 +21,7 @@ public class PlanningEngine {
     private final String mode;
     public PlanningEngine(JdbcTemplate db,ModelClient model,ObjectMapper json) {
         this.db=new JdbcTemplate(java.util.Objects.requireNonNull(db.getDataSource())); this.db.setQueryTimeout(2); this.model=model;this.json=json;
-        this.mode=model.enabled()?"deepseek":"disabled";
+        this.mode=model.mode();
     }
     public boolean enabled() { return model.enabled(); }
     public Output execute(Input input) {

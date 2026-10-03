@@ -85,7 +85,8 @@ public class DemoStorefront implements ApplicationRunner {
         for(int i=0;i<stores.length;i++) for(int offer=0;offer<2;offer++) {
             long id=activityId(day,i,offer);
             Integer available=db.queryForObject("SELECT available FROM ux_activity WHERE id=?",Integer.class,id);
-            reservations.prepare(id,available==null?0:available);
+            if(db.queryForObject("SELECT COUNT(*) FROM ux_request WHERE activity_id=?",Long.class,id)==0)
+                reservations.prepare(id,available==null?0:available);
         }
     }
 

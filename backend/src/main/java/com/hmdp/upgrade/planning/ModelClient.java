@@ -4,6 +4,7 @@ import com.fasterxml.jackson.databind.JsonNode;
 
 public interface ModelClient {
     boolean enabled();
+    default String mode() { return enabled()?"deepseek":"disabled"; }
     JsonNode complete(String role,Object payload,Budget budget);
     record CallDetails(int httpStatus, String rawResponse, JsonNode usage) {}
     default CallDetails takeLastCallDetails() { return null; }

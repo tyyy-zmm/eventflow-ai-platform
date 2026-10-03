@@ -1,81 +1,60 @@
-# EventFlow AI Platform
+# 生活优选
 
-生活优选是一个面向本地活动的高并发预约与智能行程规划平台。项目将 Redis、Kafka、MySQL 和双 Agent 规划放在同一条可运行链路中，重点展示高并发准入、异步交易可靠性、跨系统最终一致性和确定性 Agent Guardrail。
+基于黑马点评改造的本地生活项目，重点是优惠券秒杀、商家多级缓存和订单可靠性。商家浏览、候补补位和行程规划共用一个前端、一套账户和一个 Spring Boot 后端。
 
-## 核心能力
+**这是后续唯一维护的项目。** `hm-dianping/backend-upgrade` 的已验收交易与缓存实现已合入这里。旧 EventFlow 的规划能力由本项目的 `planning` 模块承接；独立预约账户、`/api/v1` 接口和 `ef_*` 表不再作为另一套应用运行。旧目录仅供追溯，见 [合并说明](docs/项目合并说明.md)。
 
-- Redis Lua 原子完成库存预扣、一人一单、请求幂等和入口限流；
-- MySQL 条件扣减、唯一约束和本地事务提供最终交易正确性；
-- Transactional Outbox + Kafka 至少一次投递，消费端以请求状态和唯一约束实现业务幂等；
-- 补偿任务、条件状态机和超时对账修复预扣后宕机、建单失败、取消与过期；
-- Cache-Aside、随机 TTL、owner 锁与 revision fence 治理热点商家缓存；
-- Discovery/Planner 双 Agent 负责活动筛选和行程组合，Java 校验预算、时间冲突和实时余量；
-- 用户注册登录、HttpOnly Session、CSRF、同源校验、订单恢复和响应丢失重放；
-- Docker Compose 一键启动，Flyway 管理数据库迁移，Actuator 提供健康与 Prometheus 指标。
+查阅代码说明和简历材料，请从[资料导航](docs/资料导航.md)进入。旧资料已经标注历史归属。
 
-## 架构
+## 项目内容
+
+- 商家：列表、筛选、详情、活动余量；基础商家信息使用 Caffeine → Redis → MySQL，多级缓存有过期、失效通知和有界回源。
+- 秒杀：Redis Lua 预扣，MySQL 请求与 Outbox 同事务，Kafka 异步建单，幂等消费；取消与到期释放库存，补偿可重试，恢复 epoch 阻止旧请求穿过库存重建。
+- 用户：Cookie 会话、CSRF、订单查询、确认、取消、丢失响应后的原请求重试。
+- 候补：售罄后排队，释放库存后走同一套预占与建单规则。候补不承诺严格 FIFO，也不绕过一人一单。
+- 规划：Discovery、Planner、Review 生成只读行程建议，Java 校验时间、预算和余量。默认禁用，可用 stub 演示；建议不占库存，不代表下单成功。
+- 运维：健康检查、Prometheus、受管理员保护的库存不变量与流水线观测接口。
+
+订单确认是演示业务状态，不涉及支付或商家核销。规划中的体验场次目前用于建议，购买入口仍是商家的优惠券活动；没有保留独立 EventFlow 的多人场次预约产品。
+
+## 本地运行
+
+需要 Java 17、Maven、Node.js 22+、Docker Compose。配置由脚本生成，不提交 `.env`。
+
+```bash
+bash run.sh init
+bash run.sh up
+bash run.sh build
+bash run.sh dev
+```
+
+打开 `http://127.0.0.1:4176`。前端代理 `/v2` 到后端 `8093`；MySQL、Redis、Kafka 端口分别为 `23307`、`26380`、`29093`。本机已有中间件和依赖时，也可分别运行 `bash run.sh backend`、`bash run.sh frontend`。
+
+启用不调用外部模型的规划演示：`PLANNING_MODE=stub bash run.sh dev`。真实模型需要自行配置 `PLANNING_MODE=deepseek` 和 `DEEPSEEK_API_KEY`，本次合并验收没有调用付费模型。
+
+容器部署：`bash run.sh init` 后运行 `docker compose up -d --build`，入口 `http://127.0.0.1:8080`。不要同时用本地后端和容器后端占用 8093。
+
+## 测试与迁移
+
+```bash
+bash run.sh test    # 单元测试；外部中间件测试跳过
+bash run.sh verify  # 完整后端测试，使用独立验收数据库和 Redis DB13
+```
+
+`verify` 需要先启动本项目中间件；数据库为 `life_choice_verification`，Kafka topic/group 为 `life-choice-verification-v1`。不清空业务库。浏览器验收见 [合并验收](docs/合并验收.md)。
+
+数据库沿用生活优选 V1–V6，库存 epoch 使用新增 V7。不能把旧 `backend-upgrade` 的数据库直接接入本项目：它的 V5 与本项目 V5 内容不同。旧生活优选已有活动若包含订单而没有 epoch，需要管理员显式调用 `POST /v2/admin/activities/{id}/recover`；启动时不会自动重置该活动库存。
+
+## 目录
 
 ```text
-Browser
-  -> Nginx (same-origin static + /v2 proxy)
-  -> Spring Boot API
-       -> Redis Lua admission / cache
-       -> MySQL request + outbox transaction
-       -> Kafka asynchronous order creation
-       -> MySQL order transaction + compensation action
-       -> Discovery Agent -> Planner Agent -> Java Validator
+backend/         后端、数据库迁移、测试、实验脚本
+frontend/        统一前端，根路径 /，只有一套登录
+infra/           部署配置
+compose.yaml     本项目中间件与前后端
+run.sh           统一运行入口
+docs/            当前说明；history/ 保存历史设计记录
+evidence/        本次验收；history/ 保存合并前实验结果
 ```
 
-Redis 准入成功只表示请求已受理。业务成功以 MySQL 订单事务提交为准；Kafka 采用至少一次语义，不宣称跨 Redis、Kafka、MySQL 的 exactly-once。
-
-## 快速开始
-
-要求 Docker Desktop 或兼容的 Docker Compose。
-
-```bash
-cp .env.example .env
-# 将四个 replace-with... 值替换为随机长密码
-docker compose up --build
-```
-
-打开 <http://127.0.0.1:8080>。首次启动会创建演示商家和活动，可自行注册账号。Compose 默认以确定性的 `stub` 模式演示规划全链路；配置 `DEEPSEEK_API_KEY` 并将 `PLANNING_MODE=deepseek` 后使用真实模型。直接启动后端时规划默认关闭，预约功能不受影响。
-
-停止服务使用 `docker compose down`；需要清空本地数据时使用 `docker compose down -v`。
-
-## 本地开发
-
-后端需要 Java 17、Maven 3.9；前端需要 Node.js 22。
-
-```bash
-docker compose up -d mysql redis kafka
-cd backend && mvn spring-boot:run -Dspring-boot.run.arguments="--upgrade.demo-data=true"
-cd frontend && npm ci && npm run dev
-```
-
-开发前端默认将 `/v2` 代理到 `127.0.0.1:8093`。
-
-## 验证
-
-```bash
-cd backend && mvn test
-cd frontend && npm ci && npm run build
-docker compose config
-```
-
-真实 MySQL/Redis/Kafka 集成、故障和容量实验位于 `backend/scripts/`，实验口径与报告位于 `docs/`。同机压测数据用于架构对照，不能外推为生产容量。
-
-## 生产边界
-
-该仓库接近可部署的单机/单区域版本，但不等于已经完成商业生产上线：
-
-- 演示环境为单 MySQL、单 Redis、单 Kafka Broker；
-- 没有真实支付、退款、核销、短信和密码找回；
-- 没有多可用区容灾、Redis Cluster 和 Kafka 多副本故障验证；
-- 上线必须使用 HTTPS，将 `COOKIE_SECURE=true`，并接入外部密钥管理、备份、告警和网关；
-- Agent 输出是只读规划建议，预约时始终重新进入标准交易链路。
-
-更详细的上线检查见 [docs/上线准备清单.md](docs/上线准备清单.md)。
-
-秒杀描述与当前代码的逐步映射见 [docs/秒杀链路与代码对照.md](docs/秒杀链路与代码对照.md)。
-
-客户侧搜索、门店详情、抢购、订单确认/取消与 FIFO 候补补位的完整说明见 [docs/客户闭环与候补验收.md](docs/客户闭环与候补验收.md)。
+本次代码验收与旧性能数据分开记录。历史缓存 2.20 倍、40 请求/秒持续 15 分钟等数据仍属于原测量版本，不能直接称作合并版的性能结果。

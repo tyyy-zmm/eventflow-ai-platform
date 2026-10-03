@@ -39,6 +39,7 @@ public class ModelConfiguration {
         if(mode.equals("deepseek") && !endpoint.startsWith("https://")) throw new IllegalArgumentException("Planning endpoint must use HTTPS");
         return new ModelClient() {
             private CallDetails lastCallDetails;
+            @Override public String mode() { return mode; }
             @Override public boolean enabled() { return !mode.equals("disabled"); }
             @Override public CallDetails takeLastCallDetails() {
                 CallDetails details = lastCallDetails;

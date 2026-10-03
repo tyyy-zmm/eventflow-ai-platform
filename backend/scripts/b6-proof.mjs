@@ -24,8 +24,8 @@ function digest(file) {
   if(statSync(file).isDirectory()) for(const child of readdirSync(file)) digest(path.join(file,child));
   else hashes[path.relative(root,file)]=createHash('sha256').update(readFileSync(file)).digest('hex');
 }
-for(const file of ['src','pom.xml','scripts/local.sh','../../eventflow-ui/src/life','../../eventflow-ui/life',
-  '../../eventflow-ui/vite.config.js','../../eventflow-ui/tests/life-browser.mjs']) digest(path.resolve(root,file));
+for(const file of ['src','pom.xml','scripts/local.sh','../frontend/src','../frontend/public',
+  '../frontend/vite.config.js','../frontend/tests/customer-flow.mjs']) digest(path.resolve(root,file));
 const result={at:new Date().toISOString(),environment:{platform:os.platform(),arch:os.arch(),cpu:os.cpus()[0].model,memoryGiB:os.totalmem()/1024**3,node:process.version},
   invariants,tests,browser,hashes,scope:'B6 customer authentication, storefront and order UI only; no performance claim or Agent changes'};
 save(path.join(directory,'summary.json'),result);

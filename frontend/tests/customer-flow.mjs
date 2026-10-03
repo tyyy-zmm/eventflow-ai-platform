@@ -91,8 +91,8 @@ try {
     await until(async () => (await item.locator('.status').innerText()) === '已取消', 'cancel not reflected')
     await openOffer('西岸餐桌', 1)
     await page.getByRole('button', { name: '立即抢券', exact: true }).nth(1).click()
-    await until(async () => await page.locator('article.order .status').filter({ hasText: '未抢到' }).count() > 0, 'repurchase not rejected')
-    assert(await page.locator('article.order').filter({ hasText: '取消或过期后也不能再次购买' }).count() > 0)
+    await page.getByRole('status').filter({ hasText: '取消或过期后也不能再次购买' }).waitFor()
+    await until(async () => await page.locator('.recovery-row').count() === 0, 'explicit rejection left uncertain intent')
   })
   await test('lost POST response, reload and same-key retry', async () => {
     let dropped = false, firstKey, firstId
@@ -181,7 +181,15 @@ try {
     await page.getByRole('button', { name: '登录', exact: true }).click()
     await page.getByRole('button', { name: '退出登录' }).waitFor()
     await page.getByRole('button', { name: '我的订单', exact: true }).click()
-    await until(async () => await page.locator('article.order').count() === 4, 'own order history missing')
+    await until(async () => await page.locator('article.order').count() === 3, 'own order history missing')
+  })
+  await test('planning uses the same signed-in account and renders stub suggestions', async () => {
+    await page.setViewportSize({ width: 1440, height: 1000 })
+    await page.getByRole('button', { name: '智能规划', exact: true }).click()
+    await page.getByRole('button', { name: '生成行程建议', exact: true }).click()
+    await page.getByText('可执行方案', { exact: true }).waitFor({ timeout: 20000 })
+    assert(await page.locator('.plan-stop').count() > 0)
+    await screenshot('desktop-planning')
   })
   assert.deepEqual(errors, [], 'browser runtime errors')
   await writeFile(resolve(output, 'results.json'), JSON.stringify({ at: new Date().toISOString(), results, errors }, null, 2))

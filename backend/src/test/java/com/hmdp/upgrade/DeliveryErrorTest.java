@@ -19,6 +19,14 @@ class DeliveryErrorTest {
     ConsumerRecord<String,String> valid() {
         return new ConsumerRecord<>("test",0,1,"1","{\"schemaVersion\":1,\"eventId\":\"e\",\"requestId\":\"r\",\"activityId\":1}");
     }
+    @Test void committedOrderAcknowledgesWithoutCallingRedisRepair() throws Exception {
+        var reservations=mock(Reservations.class);var admission=mock(Admission.class);
+        var consumer=new Delivery(db,tx,trading,kafka,new ObjectMapper(),admission,reservations,"test",false);
+        when(trading.process(any())).thenReturn(new Trading.Request("r",1,1,"hash","REJECTED","SOLD_OUT",java.time.Instant.now()));
+        doThrow(new DataAccessResourceFailureException("redis offline")).when(admission).soldOut(1);
+        var ack=mock(Acknowledgment.class);consumer.consume(valid(),ack);
+        verify(ack).acknowledge();verifyNoInteractions(reservations);verifyNoInteractions(db);
+    }
     @Test void databaseFailureNeverAcknowledges() {
         var ack=mock(Acknowledgment.class);
         doThrow(new DataAccessResourceFailureException("offline")).when(trading).process(any());

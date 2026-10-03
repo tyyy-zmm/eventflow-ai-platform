@@ -1,5 +1,7 @@
 package com.hmdp.upgrade;
 
+import static com.hmdp.upgrade.PipelineMetrics.Stage.*;
+
 import jakarta.servlet.http.HttpServletRequest;
 import java.util.Map;
 import org.springframework.beans.factory.annotation.Value;
@@ -10,6 +12,8 @@ import org.springframework.jdbc.core.JdbcTemplate;
 @RestController
 @RequestMapping("/v2")
 public class Api {
+    @org.springframework.beans.factory.annotation.Autowired(required=false)
+    private PipelineMetrics telemetry=new PipelineMetrics();
     public record Purchase(String requestId,long activityId) {}
     public record ExperimentResult(String state,String reason,boolean enteredDatabase,String requestId) {}
     public record ShopInput(String name,String description) {}
@@ -36,10 +40,11 @@ public class Api {
     }
     private ResponseEntity<?> submit(Purchase body,long user,boolean sync) {
         Reservations.Result reservation;
-        try { reservation=productionReservations.reserve(body.activityId(),user,body.requestId(),java.time.Instant.now().plusSeconds(5)); }
-        catch(org.springframework.dao.DataAccessException redisUnavailable) {
+        try { reservation=telemetry.measure(RESERVE,()->productionReservations.reserve(body.activityId(),user,body.requestId(),java.time.Instant.now().plusSeconds(5))); }
+        catch(org.springframework.dao.DataAccessException | Problem redisUnavailable) {
             var replay=trading.existing(user,body.requestId(),body.activityId());
             if(replay!=null) return response(replay);
+            if(redisUnavailable instanceof Problem problem) throw problem;
             throw new Problem(503,"RESERVATION_UNAVAILABLE");
         }
         if(reservation.decision()==Reservations.Decision.ALREADY_PURCHASED) throw new Problem(409,"ALREADY_PURCHASED");
@@ -49,24 +54,22 @@ public class Api {
             if(replay!=null) return response(replay);
             throw new Problem(409,"REQUEST_TERMINAL");
         }
-        if(reservation.newReservation()) {
-            try { gate.enter(user,body.activityId()); }
-            catch(RuntimeException rejected) {
-                try { productionReservations.releaseNow(body.activityId(),user,body.requestId(),false); } catch(RuntimeException ignored) {}
-                throw rejected;
-            }
+        try { telemetry.measure(ADMISSION,()->{gate.enter(user,body.activityId());return null;}); }
+        catch(RuntimeException rejected) {
+            if(reservation.newReservation()) try { productionReservations.releaseNow(body.activityId(),user,body.requestId(),reservation.epoch()); } catch(RuntimeException ignored) {}
+            throw rejected;
         }
         try {
             if(faults!=null) faults.hit("reserve-before-db");
-            var accepted=trading.accept(user,body.requestId(),body.activityId(),sync);
-            faults.hit("accept-before-response");
+            var accepted=trading.acceptReserved(user,body.requestId(),body.activityId(),sync,reservation.epoch());
+            if(faults!=null) faults.hit("accept-before-response");
             return response(accepted);
         }
         catch(Problem rejected) {
-            if(reservation.newReservation()) try { productionReservations.releaseNow(body.activityId(),user,body.requestId(),false); } catch(RuntimeException ignored) {}
+            if(reservation.newReservation()) try { productionReservations.releaseNow(body.activityId(),user,body.requestId(),reservation.epoch()); } catch(RuntimeException ignored) {}
             throw rejected;
         }
-        finally { if(reservation.newReservation()) gate.leave(); }
+        finally { gate.leave(); }
     }
     private ResponseEntity<?> response(Trading.Request r) {
         return ResponseEntity.status(r.state().equals("ACCEPTED")?202:200).body(r);
@@ -82,6 +85,21 @@ public class Api {
     }
     @PutMapping("/admin/shops/{id}") public Object save(@PathVariable long id,@RequestBody ShopInput body) { return shops.save(id,body.name(),body.description()); }
     @GetMapping("/admin/status") public Object status() { return Map.of("invariants",trading.invariants(),"cache",shops.metrics(),"reservations",productionReservations.metrics()); }
+    @GetMapping("/admin/pipeline") public Object pipeline() {
+        var queues=new java.util.LinkedHashMap<String,Object>();
+        queues.put("accepted",db.queryForMap("SELECT COUNT(*) size,COALESCE(TIMESTAMPDIFF(MICROSECOND,MIN(created_at),CURRENT_TIMESTAMP(3))/1000,0) oldestMs FROM ux_request WHERE state='ACCEPTED'"));
+        queues.put("outbox",db.queryForMap("SELECT COUNT(*) size,COALESCE(TIMESTAMPDIFF(MICROSECOND,MIN(created_at),CURRENT_TIMESTAMP(3))/1000,0) oldestMs FROM ux_outbox WHERE sent_at IS NULL"));
+        queues.put("reservationActions",db.queryForMap("SELECT COUNT(*) size,COALESCE(TIMESTAMPDIFF(MICROSECOND,MIN(a.created_at),CURRENT_TIMESTAMP(3))/1000,0) oldestMs FROM ux_reservation_action a JOIN ux_request r ON r.id=a.request_id JOIN ux_reservation_epoch e ON e.activity_id=r.activity_id WHERE a.applied_at IS NULL"));
+        var memory=java.lang.management.ManagementFactory.getMemoryMXBean().getHeapMemoryUsage();
+        long gcCount=java.lang.management.ManagementFactory.getGarbageCollectorMXBeans().stream().mapToLong(b->Math.max(0,b.getCollectionCount())).sum();
+        return Map.of("timers",telemetry.snapshot(),"queues",queues,"delivery",delivery.settings(),"repair",productionReservations.settings(),
+            "runtime",Map.of("heapUsedBytes",memory.getUsed(),"heapMaxBytes",memory.getMax(),"gcCount",gcCount,
+                "uptimeMs",java.lang.management.ManagementFactory.getRuntimeMXBean().getUptime()));
+    }
+    @PostMapping("/admin/activities/{id}/recover")
+    public Object recover(@PathVariable long id,HttpServletRequest req) {
+        return Map.of("epoch",productionReservations.recover(id,user(req)),"activityId",id);
+    }
     @GetMapping("/admin/quarantine") public Object quarantine() { return delivery.quarantined(); }
     @PostMapping("/admin/events/{id}/replay") public Object replay(@PathVariable String id,HttpServletRequest req) { delivery.replay(user(req),id);return Map.of("queued",true); }
     @PostMapping("/benchmark/sync") public Object synchronous(@RequestBody Purchase body,HttpServletRequest req) {

@@ -17,7 +17,7 @@ public class Waitlists {
                         String offerTitle,String shopName,String imagePath,Integer priceCents) {}
     public record Listing(List<Entry> items,Instant serverTime) {}
     public record Join(long activityId) {}
-    private record Claim(String id,long activityId,long userId,String requestKey) {}
+    record Claim(String id,long activityId,long userId,String requestKey) {}
     private final JdbcTemplate db;
     private final Transactions tx;
     private final Reservations reservations;
@@ -50,7 +50,7 @@ public class Waitlists {
             if(existing.isEmpty()) throw replay;
             String state=(String)existing.get(0).get("state");id=(String)existing.get(0).get("id");
             if("CANCELLED".equals(state) || "EXPIRED".equals(state))
-                db.update("UPDATE ux_waitlist SET state='WAITING',promoted_request_id=NULL,created_at=?,updated_at=? WHERE id=?",Timestamp.from(created),Timestamp.from(created),id);
+                db.update("UPDATE ux_waitlist SET state='WAITING',promoted_request_id=NULL,request_key=?,created_at=?,updated_at=? WHERE id=?",key,Timestamp.from(created),Timestamp.from(created),id);
         }
         return get(user,id);
     }
@@ -103,27 +103,40 @@ public class Waitlists {
             return new Claim(id,((Number)row.get("activity_id")).longValue(),((Number)row.get("user_id")).longValue(),(String)row.get("request_key"));
         });
     }
-    private void promote(Claim claim) {
+    void promote(Claim claim) {
         boolean entered=false;Reservations.Result reservation=null;
         try {
             reservation=reservations.reserve(claim.activityId(),claim.userId(),claim.requestKey(),Instant.now().plusSeconds(5));
             if(reservation.decision()==Reservations.Decision.SOLD_OUT) { waiting(claim.id());return; }
             if(reservation.decision()==Reservations.Decision.ALREADY_PURCHASED) { terminal(claim.id(),"CANCELLED");return; }
-            if(reservation.newReservation()) { admission.enter(claim.userId(),claim.activityId());entered=true; }
+            if(reservation.decision()==Reservations.Decision.REPLAY_RELEASED || reservation.decision()==Reservations.Decision.REPLAY_RESTORED) {
+                Trading.Request prior=trading.existing(claim.userId(),claim.requestKey(),claim.activityId());
+                if(prior==null) terminal(claim.id(),"EXPIRED");else promoted(claim,prior);
+                return;
+            }
+            try { admission.enter(claim.userId(),claim.activityId());entered=true; }
+            catch(RuntimeException rejected) {
+                if(reservation.newReservation()) reservations.releaseNow(claim.activityId(),claim.userId(),claim.requestKey(),reservation.epoch());
+                throw rejected;
+            }
             Trading.Request request=trading.existing(claim.userId(),claim.requestKey(),claim.activityId());
-            if(request==null) request=trading.accept(claim.userId(),claim.requestKey(),claim.activityId(),false);
-            db.update("UPDATE ux_waitlist SET state='PROMOTED',promoted_request_id=?,updated_at=CURRENT_TIMESTAMP(3) WHERE id=? AND state='PROMOTING'",request.id(),claim.id());
+            if(request==null) request=trading.acceptReserved(claim.userId(),claim.requestKey(),claim.activityId(),false,reservation.epoch());
+            promoted(claim,request);
         } catch(RuntimeException failure) {
             try {
                 Trading.Request accepted=trading.existing(claim.userId(),claim.requestKey(),claim.activityId());
                 if(accepted!=null) {
-                    db.update("UPDATE ux_waitlist SET state='PROMOTED',promoted_request_id=?,updated_at=CURRENT_TIMESTAMP(3) WHERE id=? AND state='PROMOTING'",accepted.id(),claim.id());
+                    promoted(claim,accepted);
                     return;
                 }
             } catch(RuntimeException ignored) {}
-            if(reservation!=null && reservation.newReservation()) try { reservations.releaseNow(claim.activityId(),claim.userId(),claim.requestKey(),false); } catch(RuntimeException ignored) {}
+            if(failure instanceof Problem && reservation!=null && reservation.newReservation()) try { reservations.releaseNow(claim.activityId(),claim.userId(),claim.requestKey(),reservation.epoch()); } catch(RuntimeException ignored) {}
             waiting(claim.id());
         } finally { if(entered) admission.leave(); }
+    }
+    private void promoted(Claim claim,Trading.Request request) {
+        String state=("ACCEPTED".equals(request.state()) || "SUCCEEDED".equals(request.state()))?"PROMOTED":"EXPIRED";
+        db.update("UPDATE ux_waitlist SET state=?,promoted_request_id=?,updated_at=CURRENT_TIMESTAMP(3) WHERE id=? AND state='PROMOTING'",state,request.id(),claim.id());
     }
     private void waiting(String id) { db.update("UPDATE ux_waitlist SET state='WAITING',updated_at=CURRENT_TIMESTAMP(3) WHERE id=? AND state='PROMOTING'",id); }
     private void terminal(String id,String state) { db.update("UPDATE ux_waitlist SET state=?,updated_at=CURRENT_TIMESTAMP(3) WHERE id=? AND state='PROMOTING'",state,id); }

@@ -14,7 +14,8 @@ import org.springframework.http.*;
 import static org.junit.jupiter.api.Assertions.*;
 
 @EnabledIfEnvironmentVariable(named="UPGRADE_INTEGRATION",matches="true")
-@SpringBootTest(webEnvironment=SpringBootTest.WebEnvironment.RANDOM_PORT,properties={"upgrade.demo-data=true","upgrade.jobs=true","upgrade.benchmark=false"})
+@org.springframework.test.annotation.DirtiesContext(classMode=org.springframework.test.annotation.DirtiesContext.ClassMode.AFTER_CLASS)
+@SpringBootTest(webEnvironment=SpringBootTest.WebEnvironment.RANDOM_PORT,properties={"upgrade.demo-data=true","upgrade.jobs=true","upgrade.benchmark=false","upgrade.planning.mode=stub"})
 class CustomerHttpTest {
     @LocalServerPort int port;
     @Autowired TestRestTemplate http;
@@ -36,7 +37,7 @@ class CustomerHttpTest {
     }
     long activity(int capacity) {
         long id=System.currentTimeMillis()*1000+new Random().nextInt(999);Instant now=Instant.now();
-        db.update("INSERT INTO ux_activity VALUES(?,?,?,?,?,?,?)",id,capacity,capacity,990,Timestamp.from(now.minusSeconds(1)),Timestamp.from(now.plusSeconds(300)),Timestamp.from(now.plusSeconds(600)));return id;
+        db.update("INSERT INTO ux_activity VALUES(?,?,?,?,?,?,?)",id,capacity,capacity,990,Timestamp.from(now.minusSeconds(1)),Timestamp.from(now.plusSeconds(300)),Timestamp.from(now.plusSeconds(600)));reservations.prepare(id,capacity);return id;
     }
     Map submit(Client client,long activity,String key) {
         var result=request(HttpMethod.POST,"/requests",client,Map.of("requestId",key,"activityId",activity));
@@ -94,27 +95,50 @@ class CustomerHttpTest {
         assertEquals("EXPIRED",request(HttpMethod.POST,"/requests/"+id+"/confirm",client,null).getBody().get("state"));
         assertEquals(1,db.queryForObject("SELECT available FROM ux_activity WHERE id=?",Integer.class,activity));
     }
-    @Test void soldOutWaitlistPromotesInFifoOrderAfterCancellation() throws Exception {
-        var owner=register();var first=register();var second=register();long activity=activity(1);
-        String ownerRequest=(String)submit(owner,activity,UUID.randomUUID().toString()).get("id");settled(owner,ownerRequest);
-        var joinedFirst=request(HttpMethod.POST,"/waitlists",first,Map.of("activityId",activity));
-        var joinedSecond=request(HttpMethod.POST,"/waitlists",second,Map.of("activityId",activity));
-        assertEquals(200,joinedFirst.getStatusCode().value());assertEquals(1,joinedFirst.getBody().get("position"));
-        assertEquals(200,joinedSecond.getStatusCode().value());assertEquals(2,joinedSecond.getBody().get("position"));
-        assertEquals("CANCELLED",request(HttpMethod.POST,"/requests/"+ownerRequest+"/cancel",owner,null).getBody().get("state"));
-        long until=System.nanoTime()+20_000_000_000L;Map firstEntry=null;
+
+    @Test void waitlistPromotionUsesTheSameReservationAndOrder() throws Exception {
+        var owner=register();var next=register();long activity=activity(1);
+        String first=(String)submit(owner,activity,UUID.randomUUID().toString()).get("id");settled(owner,first);
+        var joined=request(HttpMethod.POST,"/waitlists",next,Map.of("activityId",activity));
+        assertEquals(200,joined.getStatusCode().value());String waitId=(String)joined.getBody().get("id");
+        assertEquals(404,request(HttpMethod.POST,"/waitlists/"+waitId+"/cancel",owner,null).getStatusCode().value());
+        assertEquals("CANCELLED",request(HttpMethod.POST,"/requests/"+first+"/cancel",owner,null).getBody().get("state"));
+        String promoted=null;long until=System.nanoTime()+20_000_000_000L;
         while(System.nanoTime()<until) {
-            reservations.drainActions();
-            var listing=request(HttpMethod.GET,"/account/waitlists",first,null).getBody();
-            firstEntry=(Map)((List)listing.get("items")).get(0);
-            if("PROMOTED".equals(firstEntry.get("state"))) break;
-            Thread.sleep(200);
+            promoted=db.queryForObject("SELECT promoted_request_id FROM ux_waitlist WHERE id=?",String.class,waitId);
+            if(promoted!=null) break;Thread.sleep(150);
         }
-        assertNotNull(firstEntry);assertEquals("PROMOTED",firstEntry.get("state"));
-        assertNotNull(firstEntry.get("requestId"));
-        assertEquals("WAITING",((Map)((List)request(HttpMethod.GET,"/account/waitlists",second,null).getBody().get("items")).get(0)).get("state"));
-        assertEquals("PENDING_CONFIRM",settled(first,(String)firstEntry.get("requestId")).get("orderState"));
-        assertEquals(1,db.queryForObject("SELECT COUNT(*) FROM ux_order WHERE activity_id=? AND state='PENDING_CONFIRM'",Integer.class,activity));
+        assertNotNull(promoted);assertEquals("PENDING_CONFIRM",settled(next,promoted).get("orderState"));
+        assertEquals("PROMOTED",db.queryForObject("SELECT state FROM ux_waitlist WHERE id=?",String.class,waitId));
+        assertEquals(1,db.queryForObject("SELECT COUNT(*) FROM ux_request WHERE user_id=? AND activity_id=?",Integer.class,Long.parseLong(next.id()),activity));
         assertEquals(0,db.queryForObject("SELECT available FROM ux_activity WHERE id=?",Integer.class,activity));
+    }
+    @Test void cancelledWaitlistDoesNotCreateAnOrder() throws Exception {
+        var owner=register();var next=register();long activity=activity(1);
+        String first=(String)submit(owner,activity,UUID.randomUUID().toString()).get("id");settled(owner,first);
+        String id=(String)request(HttpMethod.POST,"/waitlists",next,Map.of("activityId",activity)).getBody().get("id");
+        assertEquals("CANCELLED",request(HttpMethod.POST,"/waitlists/"+id+"/cancel",next,null).getBody().get("state"));
+        String previousKey=db.queryForObject("SELECT request_key FROM ux_waitlist WHERE id=?",String.class,id);
+        assertEquals("WAITING",request(HttpMethod.POST,"/waitlists",next,Map.of("activityId",activity)).getBody().get("state"));
+        assertNotEquals(previousKey,db.queryForObject("SELECT request_key FROM ux_waitlist WHERE id=?",String.class,id));
+        assertEquals("CANCELLED",request(HttpMethod.POST,"/waitlists/"+id+"/cancel",next,null).getBody().get("state"));
+        request(HttpMethod.POST,"/requests/"+first+"/cancel",owner,null);Thread.sleep(1500);
+        assertEquals(0,db.queryForObject("SELECT COUNT(*) FROM ux_request WHERE user_id=? AND activity_id=?",Integer.class,Long.parseLong(next.id()),activity));
+    }
+    @Test void planningSharesSessionAndProtectsTaskOwnership() throws Exception {
+        var owner=register();var other=register();var tomorrow=LocalDate.now(ZoneOffset.UTC).plusDays(1);
+        var input=Map.of("constraints",Map.of("city","上海","from",tomorrow.atStartOfDay().toString(),"until",tomorrow.plusDays(1).atStartOfDay().toString(),"budgetCents",20000,"people",1),"preference","轻松用餐");
+        var body=Map.of("requestKey","plan_"+UUID.randomUUID(),"input",input);
+        var created=request(HttpMethod.POST,"/planning/tasks",owner,body);assertEquals(202,created.getStatusCode().value());
+        String id=(String)created.getBody().get("id");
+        assertEquals(id,request(HttpMethod.POST,"/planning/tasks",owner,body).getBody().get("id"));
+        assertEquals(404,request(HttpMethod.GET,"/planning/tasks/"+id,other,null).getStatusCode().value());
+        Map task=null;long until=System.nanoTime()+15_000_000_000L;
+        while(System.nanoTime()<until) {
+            task=request(HttpMethod.GET,"/planning/tasks/"+id,owner,null).getBody();
+            if(!List.of("QUEUED","RUNNING").contains(task.get("status"))) break;Thread.sleep(150);
+        }
+        assertEquals("SUCCEEDED",task.get("status"));
+        assertEquals("stub",((Map)task.get("result")).get("mode"));
     }
 }

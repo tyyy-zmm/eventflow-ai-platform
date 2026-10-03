@@ -1,0 +1,42 @@
+{
+  "at": "2026-10-03T06:05:59.948Z",
+  "results": [
+    {
+      "name": "public catalog, filters and desktop layout",
+      "passed": true
+    },
+    {
+      "name": "register, session cookie and reload restore",
+      "passed": true
+    },
+    {
+      "name": "real async order and local confirmation",
+      "passed": true
+    },
+    {
+      "name": "cancel and one-purchase restriction",
+      "passed": true
+    },
+    {
+      "name": "lost POST response, reload and same-key retry",
+      "passed": true
+    },
+    {
+      "name": "mobile catalog, dialog, keyboard and orders layout",
+      "passed": true
+    },
+    {
+      "name": "blocked local storage stops purchase before sending",
+      "passed": true
+    },
+    {
+      "name": "logout, another account isolation and original account login",
+      "passed": true
+    },
+    {
+      "name": "planning uses the same signed-in account and renders stub suggestions",
+      "passed": true
+    }
+  ],
+  "errors": []
+}

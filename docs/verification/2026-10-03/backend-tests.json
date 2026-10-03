@@ -1,0 +1,131 @@
+{
+  "at": "2026-10-03T06:07:46.352302+00:00",
+  "suites": [
+    {
+      "name": "com.hmdp.upgrade.AccountsTest",
+      "tests": "7",
+      "failures": "0",
+      "errors": "0",
+      "skipped": "0",
+      "time": "5.924"
+    },
+    {
+      "name": "com.hmdp.upgrade.AuthTest",
+      "tests": "4",
+      "failures": "0",
+      "errors": "0",
+      "skipped": "0",
+      "time": "0.007"
+    },
+    {
+      "name": "com.hmdp.upgrade.CustomerAuthTest",
+      "tests": "9",
+      "failures": "0",
+      "errors": "0",
+      "skipped": "0",
+      "time": "0.017"
+    },
+    {
+      "name": "com.hmdp.upgrade.CustomerHttpTest",
+      "tests": "9",
+      "failures": "0",
+      "errors": "0",
+      "skipped": "0",
+      "time": "9.067"
+    },
+    {
+      "name": "com.hmdp.upgrade.DeliveryErrorTest",
+      "tests": "5",
+      "failures": "0",
+      "errors": "0",
+      "skipped": "0",
+      "time": "0.513"
+    },
+    {
+      "name": "com.hmdp.upgrade.DeliveryWindowTest",
+      "tests": "3",
+      "failures": "0",
+      "errors": "0",
+      "skipped": "0",
+      "time": "0.034"
+    },
+    {
+      "name": "com.hmdp.upgrade.MiddlewareTest",
+      "tests": "28",
+      "failures": "0",
+      "errors": "0",
+      "skipped": "0",
+      "time": "9.201"
+    },
+    {
+      "name": "com.hmdp.upgrade.PipelineMetricsTest",
+      "tests": "4",
+      "failures": "0",
+      "errors": "0",
+      "skipped": "0",
+      "time": "0.019"
+    },
+    {
+      "name": "com.hmdp.upgrade.ReliabilityIntegrationTest",
+      "tests": "7",
+      "failures": "0",
+      "errors": "0",
+      "skipped": "0",
+      "time": "3.316"
+    },
+    {
+      "name": "com.hmdp.upgrade.ReservationsPagingTest",
+      "tests": "3",
+      "failures": "0",
+      "errors": "0",
+      "skipped": "0",
+      "time": "0.092"
+    },
+    {
+      "name": "com.hmdp.upgrade.ShopCacheTest",
+      "tests": "5",
+      "failures": "0",
+      "errors": "0",
+      "skipped": "0",
+      "time": "0.019"
+    },
+    {
+      "name": "com.hmdp.upgrade.TradingTest",
+      "tests": "20",
+      "failures": "0",
+      "errors": "0",
+      "skipped": "0",
+      "time": "1.077"
+    },
+    {
+      "name": "com.hmdp.upgrade.TransactionsTest",
+      "tests": "2",
+      "failures": "0",
+      "errors": "0",
+      "skipped": "0",
+      "time": "0.071"
+    },
+    {
+      "name": "com.hmdp.upgrade.WaitlistsTest",
+      "tests": "3",
+      "failures": "0",
+      "errors": "0",
+      "skipped": "0",
+      "time": "0.003"
+    },
+    {
+      "name": "com.hmdp.upgrade.planning.PlanningWorkflowTest",
+      "tests": "3",
+      "failures": "0",
+      "errors": "0",
+      "skipped": "0",
+      "time": "0.005"
+    }
+  ],
+  "totals": {
+    "tests": 112,
+    "failures": 0,
+    "errors": 0,
+    "skipped": 0
+  }
+}

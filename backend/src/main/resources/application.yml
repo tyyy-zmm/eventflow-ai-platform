@@ -41,10 +41,13 @@ spring:
         request.timeout.ms: 3000
         max.block.ms: 2000
     consumer:
-      group-id: upgrade-orders-v1
+      group-id: ${UPGRADE_GROUP:upgrade-orders-v1}
       auto-offset-reset: earliest
       enable-auto-commit: false
       max-poll-records: 10
+      properties:
+        session.timeout.ms: 15000
+        heartbeat.interval.ms: 3000
       key-deserializer: org.apache.kafka.common.serialization.StringDeserializer
       value-deserializer: org.apache.kafka.common.serialization.StringDeserializer
     listener:
@@ -52,9 +55,17 @@ spring:
       concurrency: 2
       missing-topics-fatal: false
 upgrade:
-  auth-secret: ${APP_AUTH_SECRET:${UPGRADE_AUTH_SECRET:change-this-local-development-secret-000000}}
-  topic: upgrade-orders-v1
+  auth-secret: ${APP_AUTH_SECRET:${UPGRADE_AUTH_SECRET}}
+  topic: ${UPGRADE_TOPIC:upgrade-orders-v1}
   jobs: true
+  compact-transactions: true
+  reconcile-page-size: 32
+  reconcile-budget: 100
+  relay-batch: 100
+  relay-window: 1
+  relay-delay-ms: 100
+  repair-batch: 100
+  repair-delay-ms: 1000
   rate-user: 5
   rate-activity: 200
   backlog-limit: 5000
