@@ -1,0 +1,19 @@
+{
+  "date": "2026-10-03",
+  "metricsWithoutTokenStatus": 401,
+  "metricsWithTokenStatus": 200,
+  "prometheusTargetUp": 1,
+  "projectionPendingReadable": true,
+  "grafanaVersion": "12.1.1",
+  "dashboardUid": "life-choice-reliability",
+  "dashboardPanels": 10,
+  "composeConfigValid": true,
+  "applicationImageBuild": {
+    "status": "blocked-by-registry-network",
+    "attempts": 2,
+    "errors": [
+      "Docker Hub anonymous-token EOF",
+      "Docker Hub TLS handshake timeout"
+    ]
+  }
+}

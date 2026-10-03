@@ -25,6 +25,8 @@ public class Auth extends OncePerRequestFilter {
     private Accounts accounts;
     @Value("${upgrade.benchmark:false}")
     private boolean laboratory;
+    @Value("${upgrade.metrics-token:}")
+    private String metricsToken="";
     public Auth(@Value("${upgrade.auth-secret}") String secret) {
         if(secret.length()<32) throw new IllegalArgumentException("UPGRADE_AUTH_SECRET must contain at least 32 characters");
         this.secret=secret.getBytes(StandardCharsets.UTF_8);
@@ -55,11 +57,13 @@ public class Auth extends OncePerRequestFilter {
             }
             String path=req.getRequestURI();
             boolean health=safe && (path.equals("/actuator/health") || path.startsWith("/actuator/health/"));
+            String authorization=req.getHeader("Authorization");
+            boolean metrics=metrics(path,safe,authorization);
             boolean catalog=safe && (path.equals("/v2/catalog/shops") || path.matches("/v2/catalog/shops/[0-9]+"));
             boolean signIn=req.getMethod().equals("POST") && (path.equals("/v2/auth/login") || path.equals("/v2/auth/register"));
             if(signIn && (req.getContentType()==null || !req.getContentType().toLowerCase(java.util.Locale.ROOT).startsWith("application/json")))
                 throw new Problem(415,"JSON_REQUIRED");
-            if(health || catalog || signIn) { chain.doFilter(req,res);return; }
+            if(health || metrics || catalog || signIn) { chain.doFilter(req,res);return; }
 
             String sessionToken=cookie(req);
             Identity identity;
@@ -74,7 +78,7 @@ public class Auth extends OncePerRequestFilter {
                     if(supplied==null || !MessageDigest.isEqual(session.csrfToken().getBytes(StandardCharsets.UTF_8),supplied.getBytes(StandardCharsets.UTF_8)))
                         throw new Problem(403,"CSRF_REJECTED");
                 }
-            } else if(laboratory) identity=verify(req.getHeader("Authorization"));
+            } else if(laboratory) identity=verify(authorization);
             else throw new Problem(401,"UNAUTHORIZED");
             if(req.getRequestURI().startsWith("/v2/admin/") && !identity.admin()) throw new Problem(403,"ADMIN_REQUIRED");
             long second=System.currentTimeMillis()/1000;
@@ -106,5 +110,9 @@ public class Auth extends OncePerRequestFilter {
             if(!req.getScheme().equalsIgnoreCase(parsed.getScheme()) || !req.getHeader("Host").equalsIgnoreCase(parsed.getRawAuthority())
                 || (parsed.getRawPath()!=null && !parsed.getRawPath().isEmpty())) throw new IllegalArgumentException();
         } catch(Exception e) { throw new Problem(403,"ORIGIN_REJECTED"); }
+    }
+    boolean metrics(String path,boolean safe,String authorization) {
+        return safe && path.equals("/actuator/prometheus") && !metricsToken.isBlank() && authorization!=null
+            && MessageDigest.isEqual(("Bearer "+metricsToken).getBytes(StandardCharsets.UTF_8),authorization.getBytes(StandardCharsets.UTF_8));
     }
 }

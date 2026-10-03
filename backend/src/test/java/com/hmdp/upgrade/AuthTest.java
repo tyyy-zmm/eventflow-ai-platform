@@ -17,4 +17,11 @@ class AuthTest {
     @Test void rejectsExpired() throws Exception { String token=signed("7:user:1");assertThrows(Problem.class,()->new Auth(secret).verify(token)); }
     @Test void rejectsTampering() throws Exception { String token=signed("7:user:"+(System.currentTimeMillis()/1000+60)).replace("7:user","7:admin");assertThrows(Problem.class,()->new Auth(secret).verify(token)); }
     @Test void rejectsMissing() { assertThrows(Problem.class,()->new Auth(secret).verify(null)); }
+    @Test void metricsTokenOnlyAuthorizesPrometheusGet() {
+        var auth=new Auth(secret);org.springframework.test.util.ReflectionTestUtils.setField(auth,"metricsToken","metrics-test-token-01234567890123456789");
+        assertTrue(auth.metrics("/actuator/prometheus",true,"Bearer metrics-test-token-01234567890123456789"));
+        assertFalse(auth.metrics("/actuator/prometheus",false,"Bearer metrics-test-token-01234567890123456789"));
+        assertFalse(auth.metrics("/v2/admin/cache",true,"Bearer metrics-test-token-01234567890123456789"));
+        assertFalse(auth.metrics("/actuator/prometheus",true,"Bearer wrong"));
+    }
 }

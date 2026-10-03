@@ -56,11 +56,12 @@ function App() {
   const [catalog, setCatalog] = useState(null), [catalogError, setCatalogError] = useState(''), [loading, setLoading] = useState(true)
   const [selected, setSelected] = useState(null), [detail, setDetail] = useState(null), [detailError, setDetailError] = useState('')
   const [orders, setOrders] = useState(null), [ordersError, setOrdersError] = useState(''), [filter, setFilter] = useState(''), [orderPage, setOrderPage] = useState(1)
+  const [history, setHistory] = useState(null), [historyError, setHistoryError] = useState(''), [showHistory, setShowHistory] = useState(false)
   const [waitlists, setWaitlists] = useState(null), [waitlistsError, setWaitlistsError] = useState('')
   const [pending, setPending] = useState([]), [busy, setBusy] = useState(false), [cancel, setCancel] = useState(null), [tick, setTick] = useState(Date.now()), [refresh, setRefresh] = useState(0)
   const currentUser = useRef(null), lock = useRef(false), skew = useRef(0), generation = useRef(0)
   const user = session?.user.id
-  function acceptSession(value) { currentUser.current = value?.user.id || null; bindAccount(value?.user.id); setSession(value); setOrders(null); setWaitlists(null); setPending(readPending(value?.user.id)); setAuthError('') }
+  function acceptSession(value) { currentUser.current = value?.user.id || null; bindAccount(value?.user.id); setSession(value); setOrders(null); setHistory(null); setShowHistory(false); setWaitlists(null); setPending(readPending(value?.user.id)); setAuthError('') }
   useEffect(() => { let active = true; api('/auth/me').then(x => { if (active) acceptSession(x) }).catch(e => { if (active && e.status !== 401) setAuthError('登录状态暂时无法读取，请刷新重试。') }).finally(() => { if (active) setReady(true) }); return () => { active = false } }, [])
   useEffect(() => { const timer = setInterval(() => setTick(Date.now()), 1000); return () => clearInterval(timer) }, [])
   useEffect(() => { if (!notice) return; const timer = setTimeout(() => setNotice(''), 8000); return () => clearTimeout(timer) }, [notice])
@@ -104,6 +105,15 @@ function App() {
     document.addEventListener('visibilitychange', load)
     return () => { controller.abort(); clearInterval(timer); document.removeEventListener('visibilitychange', load) }
   }, [user, view, orderPage, filter, refresh])
+  useEffect(() => {
+    if (!user || view !== 'orders' || !showHistory) return
+    const controller = new AbortController(); const owner = user
+    const load = () => api(`/account/order-history?${new URLSearchParams({ page: orderPage })}`, { signal: controller.signal }).then(result => {
+      if (currentUser.current === owner && !controller.signal.aborted) { setHistory(result); setHistoryError('') }
+    }).catch(e => { if (!controller.signal.aborted && currentUser.current === owner) setHistoryError(sessionFailure(e)) })
+    load(); const timer = setInterval(load, 3000)
+    return () => { controller.abort(); clearInterval(timer) }
+  }, [user, view, showHistory, orderPage, refresh])
   useEffect(() => {
     if (!user || view !== 'orders') return
     const controller = new AbortController(); const owner = user
@@ -216,6 +226,8 @@ function App() {
           {unresolved.length > 0 && <section className="recovery"><h2><Clock3 size={19}/>结果待确认</h2><p className="muted small">网络中断不代表下单失败。查结果或重试都会使用原请求。</p>{unresolved.map(intent => <div className="recovery-row" key={intent.key}><div><strong>{intent.shopName} · {intent.offerTitle}</strong><p className="muted small">{when(intent.createdAt)} · {intent.key.slice(0, 8)}</p></div><div className="actions"><button className="outline" disabled={busy} onClick={() => check(intent)}>查结果</button><button className="outline" disabled={busy} onClick={() => purchase({ id: intent.activityId }, {}, intent)}>原请求重试</button></div></div>)}</section>}
           {waitlistsError && <p className="error" role="alert">{waitlistsError}</p>}
           {waitlists?.items?.some(x => ['WAITING', 'PROMOTING'].includes(x.state)) && <section className="waitlist-panel"><div className="waitlist-heading"><div><h2><ListOrdered size={19}/>我的候补</h2><p className="muted small">名额释放后按加入顺序自动补位，成功后会生成待确认订单。</p></div></div>{waitlists.items.filter(x => ['WAITING', 'PROMOTING'].includes(x.state)).map(entry => <article className="waitlist-row" key={entry.id}>{entry.imagePath && <img src={entry.imagePath} alt=""/>}<div><strong>{entry.shopName} · {entry.offerTitle}</strong><p className="muted small">{entry.state === 'WAITING' ? `当前第 ${entry.position} 位` : '正在为你锁定释放的名额'} · {when(entry.createdAt)}</p></div><span className={`status ${entry.state.toLowerCase()}`}>{waitlistLabels[entry.state]}</span>{entry.state === 'WAITING' && <button className="outline compact" disabled={busy} onClick={() => cancelWaitlist(entry)}>退出候补</button>}</article>)}</section>}
+          <section className="history-access"><div><h2>历史查询读模型</h2><p className="muted small">按用户路由到 32 张查询表，可能比实时订单短暂延迟；确认和取消始终以实时订单为准。</p></div><button className="outline" onClick={() => { setShowHistory(x => !x); setHistory(null); setHistoryError('') }}>{showHistory ? '收起历史查询' : '查看历史查询'}</button></section>
+          {showHistory && <section className="history-panel" aria-label="历史查询结果">{historyError ? <p className="error" role="alert">{historyError}</p> : !history ? <p className="empty">正在读取查询分表…</p> : history.items.length ? <><p className="history-consistency"><ShieldCheck size={15}/>最终一致读模型 · 共 {history.total} 条</p><div className="history-list">{history.items.map(item => <article className="history-row" key={item.id}>{item.imagePath && <img src={item.imagePath} alt=""/>}<div><strong>{item.shopName || '活动订单'}</strong><p>{item.offerTitle || `活动 ${item.activityId}`}</p><p className="muted small">{when(item.createdAt)} · 订单 {item.id.slice(0, 8)}</p></div><b>¥{money(item.priceCents)}</b><span className={`status ${item.state.toLowerCase()}`}>{labels[item.state] || item.state}</span></article>)}</div>{history.total > 20 && <Pager page={orderPage} total={history.total} size={20} change={setOrderPage}/>}</> : <div className="empty"><Ticket size={28}/><h2>查询分表尚无记录</h2><p className="muted">新订单会由后台同步，稍后自动刷新。</p></div>}</section>}
           <div className="order-tabs" role="group" aria-label="订单筛选">{[['', '全部订单'], ['pending', '处理中'], ['confirmed', '已确认'], ['closed', '已关闭']].map(([key, label]) => <button key={key} className={filter === key ? 'selected' : ''} aria-pressed={filter === key} onClick={() => { setFilter(key); setOrderPage(1); setOrders(null) }}>{label}</button>)}</div>
           {ordersError && <p className="error" role="alert">{ordersError}</p>}
           {!orders && !ordersError ? <p className="empty">正在读取订单…</p> : orders?.items.length ? <div className="order-list">{orders.items.map(item => {

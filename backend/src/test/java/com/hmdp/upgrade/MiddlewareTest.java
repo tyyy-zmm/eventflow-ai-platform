@@ -88,8 +88,8 @@ class MiddlewareTest {
         projection.apply(old);service.transition(user,request.id(),"cancel");
         var latest=db.queryForMap("SELECT o.*,p.revision FROM ux_order o JOIN ux_order_projection p ON o.id=p.order_id WHERE o.request_id=?",request.id());
         projection.apply(latest);projection.apply(old);projection.apply(latest);
-        assertEquals("CANCELLED",projection.list(user,1).get(0).get("state"));
-        assertTrue(projection.list(user+32,1).stream().noneMatch(r->r.get("request_id").equals(request.id())));valid();
+        assertEquals("CANCELLED",projection.list(user,1).get(0).state());
+        assertTrue(projection.list(user+32,1).stream().noneMatch(r->r.requestId().equals(request.id())));valid();
     }
     @Test void mysqlThousandRequestsHundredStock() throws Exception {
         long a=activity(100);var pool=Executors.newFixedThreadPool(16);

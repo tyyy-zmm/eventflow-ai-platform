@@ -1,0 +1,25 @@
+{
+  "annotations": {"list": []},
+  "editable": false,
+  "panels": [
+    {"type":"stat","title":"缓存熔断状态","id":1,"gridPos":{"h":5,"w":4,"x":0,"y":0},"targets":[{"expr":"life_cache_circuit_state","refId":"A"}],"fieldConfig":{"defaults":{"mappings":[{"type":"value","options":{"0":{"text":"正常","color":"green"},"1":{"text":"熔断","color":"red"},"2":{"text":"恢复中","color":"yellow"}}}],"color":{"mode":"thresholds"},"thresholds":{"mode":"absolute","steps":[{"color":"green","value":null},{"color":"red","value":1},{"color":"yellow","value":2}]}},"overrides":[]}},
+    {"type":"stat","title":"订单投影积压","id":2,"gridPos":{"h":5,"w":4,"x":4,"y":0},"targets":[{"expr":"life_order_projection_pending","refId":"A"}]},
+    {"type":"stat","title":"Outbox 积压","id":3,"gridPos":{"h":5,"w":4,"x":8,"y":0},"targets":[{"expr":"life_business_outbox_pending","refId":"A"}]},
+    {"type":"stat","title":"最老 Outbox 秒数","id":4,"gridPos":{"h":5,"w":4,"x":12,"y":0},"targets":[{"expr":"life_business_outbox_oldest_age_seconds","refId":"A"}]},
+    {"type":"stat","title":"缓存失效积压","id":5,"gridPos":{"h":5,"w":4,"x":16,"y":0},"targets":[{"expr":"life_business_invalidation_pending","refId":"A"}]},
+    {"type":"stat","title":"毒消息总数","id":6,"gridPos":{"h":5,"w":4,"x":20,"y":0},"targets":[{"expr":"life_business_poison_total","refId":"A"}]},
+    {"type":"timeseries","title":"缓存事件速率","id":7,"gridPos":{"h":8,"w":12,"x":0,"y":5},"targets":[{"expr":"sum by (kind) (rate(life_cache_events_total[1m]))","legendFormat":"{{kind}}","refId":"A"}]},
+    {"type":"timeseries","title":"Bloom 事件速率","id":8,"gridPos":{"h":8,"w":12,"x":12,"y":5},"targets":[{"expr":"sum by (kind) (rate(life_cache_bloom_total[1m]))","legendFormat":"{{kind}}","refId":"A"}]},
+    {"type":"timeseries","title":"HTTP P95","id":9,"gridPos":{"h":8,"w":12,"x":0,"y":13},"targets":[{"expr":"histogram_quantile(0.95, sum by (le) (rate(http_server_requests_seconds_bucket[5m])))","legendFormat":"P95","refId":"A"}]},
+    {"type":"timeseries","title":"JVM 堆内存","id":10,"gridPos":{"h":8,"w":12,"x":12,"y":13},"targets":[{"expr":"sum(jvm_memory_used_bytes{area=\"heap\"})","legendFormat":"used","refId":"A"},{"expr":"sum(jvm_memory_max_bytes{area=\"heap\"})","legendFormat":"max","refId":"B"}]}
+  ],
+  "refresh": "5s",
+  "schemaVersion": 41,
+  "tags": ["life-choice", "cache", "orders"],
+  "templating": {"list": []},
+  "time": {"from":"now-30m","to":"now"},
+  "timezone": "browser",
+  "title": "生活优选：缓存与交易可靠性",
+  "uid": "life-choice-reliability",
+  "version": 1
+}

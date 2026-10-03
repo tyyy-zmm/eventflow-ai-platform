@@ -81,6 +81,10 @@ try {
     await screenshot('desktop-pending-order')
     await item.getByRole('button', { name: '确认订单', exact: true }).click()
     await until(async () => (await item.locator('.status').innerText()) === '已确认', 'confirmation not reflected')
+    await page.getByRole('button', { name: '查看历史查询', exact: true }).click()
+    await page.getByLabel('历史查询结果').getByText('最终一致读模型').waitFor({ timeout: 15000 })
+    await page.getByLabel('历史查询结果').getByText('已确认', { exact: true }).first().waitFor({ timeout: 15000 })
+    await screenshot('desktop-history-query')
   })
   await test('cancel and one-purchase restriction', async () => {
     await openOffer('西岸餐桌', 1)

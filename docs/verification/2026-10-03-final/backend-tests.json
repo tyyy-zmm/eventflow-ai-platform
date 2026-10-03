@@ -1,0 +1,10 @@
+{
+  "command": "bash backend/scripts/verification.sh package",
+  "suites": 18,
+  "tests": 125,
+  "failures": 0,
+  "errors": 0,
+  "skipped": 0,
+  "status": "passed",
+  "date": "2026-10-03"
+}

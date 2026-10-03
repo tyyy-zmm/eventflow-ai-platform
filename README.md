@@ -11,6 +11,7 @@
 - 商家：列表、筛选、详情、活动余量；基础商家信息使用 Caffeine → Redis → MySQL，多级缓存有过期、失效通知和有界回源。
 - 秒杀：Redis Lua 预扣，MySQL 请求与 Outbox 同事务，Kafka 异步建单，幂等消费；取消与到期释放库存，补偿可重试，恢复 epoch 阻止旧请求穿过库存重建。
 - 用户：Cookie 会话、CSRF、订单查询、确认、取消、丢失响应后的原请求重试。
+- 历史订单：交易库保留库存与订单的本地事务，后台将订单投影到按用户路由的 32 张查询表；版本号抵御重复与乱序，定时核对负责缺失修复。
 - 候补：售罄后排队，释放库存后走同一套预占与建单规则。候补不承诺严格 FIFO，也不绕过一人一单。
 - 规划：Discovery、Planner、Review 生成只读行程建议，Java 校验时间、预算和余量。默认禁用，可用 stub 演示；建议不占库存，不代表下单成功。
 - 运维：健康检查、Prometheus、受管理员保护的库存不变量与流水线观测接口。
@@ -34,6 +35,14 @@ bash run.sh dev
 
 容器部署：`bash run.sh init` 后运行 `docker compose up -d --build`，入口 `http://127.0.0.1:8080`。不要同时用本地后端和容器后端占用 8093。
 
+本地观测平台使用可选 profile：
+
+```bash
+docker compose --profile observability up -d --build
+```
+
+Prometheus 默认位于 `http://127.0.0.1:29090`，Grafana 位于 `http://127.0.0.1:23000`。请在 `.env` 配置独立的 `METRICS_TOKEN` 和 `GRAFANA_ADMIN_PASSWORD`；Prometheus 使用只允许读取 `/actuator/prometheus` 的指标令牌，不能访问管理接口。
+
 ## 测试与迁移
 
 ```bash
@@ -43,7 +52,7 @@ bash run.sh verify  # 完整后端测试，使用独立验收数据库和 Redis 
 
 `verify` 需要先启动本项目中间件；数据库为 `life_choice_verification`，Kafka topic/group 为 `life-choice-verification-v1`。不清空业务库。浏览器验收见 [合并验收](docs/合并验收.md)。
 
-数据库沿用生活优选 V1–V6，库存 epoch 使用新增 V7。不能把旧 `backend-upgrade` 的数据库直接接入本项目：它的 V5 与本项目 V5 内容不同。旧生活优选已有活动若包含订单而没有 epoch，需要管理员显式调用 `POST /v2/admin/activities/{id}/recover`；启动时不会自动重置该活动库存。
+数据库沿用生活优选 V1–V6；V7 增加库存 epoch，V8–V10 增加订单读模型、Bloom 重建互斥和投影展示字段。不能把旧 `backend-upgrade` 的数据库直接接入本项目：它的 V5 与本项目 V5 内容不同。旧生活优选已有活动若包含订单而没有 epoch，需要管理员显式调用 `POST /v2/admin/activities/{id}/recover`；启动时不会自动重置该活动库存。
 
 ## 目录
 

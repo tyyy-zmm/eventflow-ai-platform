@@ -87,6 +87,19 @@ try {
     results.push(result);save(path.join(dir,`${round+1}-${mode}-raw.json`),samples);save(path.join(dir,'results.json'),results);
     console.log(JSON.stringify(result));
   }
+  const median=values=>percentile(values,.5);
+  const aggregate=Object.fromEntries(modes.map(mode=>{
+    const rows=results.filter(x=>x.mode===mode);
+    return [mode,{medianQps:median(rows.map(x=>x.successfulQps)),medianP95Ms:median(rows.map(x=>x.successP95Ms)),
+      medianP99Ms:median(rows.map(x=>x.successP99Ms)),totalDatabaseReads:rows.reduce((n,x)=>n+x.databaseReads,0),
+      totalRequests:rows.reduce((n,x)=>n+x.requests,0),errorRate:rows.reduce((n,x)=>n+x.requests*x.errorRate,0)/rows.reduce((n,x)=>n+x.requests,0)}];
+  }));
+  const ratio=(value,base)=>base===0?null:value/base;
+  const summary={rounds,seconds,concurrency,aggregate,comparisons:{
+    optimizedVsDirect:{qpsRatio:ratio(aggregate.optimized.medianQps,aggregate.direct.medianQps),p95Reduction:1-ratio(aggregate.optimized.medianP95Ms,aggregate.direct.medianP95Ms)},
+    optimizedVsRedisTtl:{qpsRatio:ratio(aggregate.optimized.medianQps,aggregate.ttl.medianQps),p95Reduction:1-ratio(aggregate.optimized.medianP95Ms,aggregate.ttl.medianP95Ms)}
+  }};
+  save(path.join(dir,'summary.json'),summary);console.log(JSON.stringify(summary));
   console.log(`Evidence: ${dir}`);
 } catch(error) {save(path.join(dir,'failure.json'),{message:error.message,completed:results});throw error;}
 finally {for(const child of children.reverse()) await stop(child);}

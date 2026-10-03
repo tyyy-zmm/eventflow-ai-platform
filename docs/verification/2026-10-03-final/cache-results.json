@@ -1,0 +1,146 @@
+[
+  {
+    "round": 1,
+    "mode": "direct",
+    "elapsedSeconds": 30.000599582999996,
+    "requests": 182897,
+    "statuses": {
+      "200": 182897
+    },
+    "errorRate": 0,
+    "successfulQps": 6096.4448225108,
+    "successP95Ms": 2.8462499999986903,
+    "successP99Ms": 5.934333000001061,
+    "databaseReads": 182897,
+    "localHits": 0,
+    "redisHits": 0
+  },
+  {
+    "round": 1,
+    "mode": "ttl",
+    "elapsedSeconds": 30.00202254199999,
+    "requests": 227086,
+    "statuses": {
+      "200": 227086
+    },
+    "errorRate": 0,
+    "successfulQps": 7569.023044433125,
+    "successP95Ms": 2.114500000003318,
+    "successP99Ms": 3.760958999999275,
+    "databaseReads": 16,
+    "localHits": 0,
+    "redisHits": 227070
+  },
+  {
+    "round": 1,
+    "mode": "optimized",
+    "elapsedSeconds": 30.000816542,
+    "requests": 482004,
+    "statuses": {
+      "200": 482004
+    },
+    "errorRate": 0,
+    "successfulQps": 16066.362704668814,
+    "successP95Ms": 1.3874589999904856,
+    "successP99Ms": 2.6958750000048894,
+    "databaseReads": 6,
+    "localHits": 481716,
+    "redisHits": 288
+  },
+  {
+    "round": 2,
+    "mode": "ttl",
+    "elapsedSeconds": 30.000608624999995,
+    "requests": 199045,
+    "statuses": {
+      "200": 199045
+    },
+    "errorRate": 0,
+    "successfulQps": 6634.698731882811,
+    "successP95Ms": 2.4582919999957085,
+    "successP99Ms": 4.343250000005355,
+    "databaseReads": 16,
+    "localHits": 0,
+    "redisHits": 199029
+  },
+  {
+    "round": 2,
+    "mode": "optimized",
+    "elapsedSeconds": 30.000319124999994,
+    "requests": 530695,
+    "statuses": {
+      "200": 530695
+    },
+    "errorRate": 0,
+    "successfulQps": 17689.64515973295,
+    "successP95Ms": 1.0930419999931473,
+    "successP99Ms": 2.2437499999941792,
+    "databaseReads": 6,
+    "localHits": 530415,
+    "redisHits": 280
+  },
+  {
+    "round": 2,
+    "mode": "direct",
+    "elapsedSeconds": 30.000468166999983,
+    "requests": 186711,
+    "statuses": {
+      "200": 186711
+    },
+    "errorRate": 0,
+    "successfulQps": 6223.602877150397,
+    "successP95Ms": 2.39162499998929,
+    "successP99Ms": 3.7896250000048894,
+    "databaseReads": 186711,
+    "localHits": 0,
+    "redisHits": 0
+  },
+  {
+    "round": 3,
+    "mode": "optimized",
+    "elapsedSeconds": 30.000424499999994,
+    "requests": 547529,
+    "statuses": {
+      "200": 547529
+    },
+    "errorRate": 0,
+    "successfulQps": 18250.70841914254,
+    "successP95Ms": 1.0298749999783468,
+    "successP99Ms": 2.255875000002561,
+    "databaseReads": 6,
+    "localHits": 547249,
+    "redisHits": 280
+  },
+  {
+    "round": 3,
+    "mode": "direct",
+    "elapsedSeconds": 30.00038162499998,
+    "requests": 199267,
+    "statuses": {
+      "200": 199267
+    },
+    "errorRate": 0,
+    "successfulQps": 6642.148839664973,
+    "successP95Ms": 2.1998339999991003,
+    "successP99Ms": 3.43091700001969,
+    "databaseReads": 199267,
+    "localHits": 0,
+    "redisHits": 0
+  },
+  {
+    "round": 3,
+    "mode": "ttl",
+    "elapsedSeconds": 30.000506999999985,
+    "requests": 235351,
+    "statuses": {
+      "200": 235351
+    },
+    "errorRate": 0,
+    "successfulQps": 7844.900754510586,
+    "successP95Ms": 1.9485829999903217,
+    "successP99Ms": 3.1529589999991003,
+    "databaseReads": 16,
+    "localHits": 0,
+    "redisHits": 235335
+  }
+]
