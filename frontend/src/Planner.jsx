@@ -12,7 +12,7 @@ function defaults() {
   const day = new Date(); day.setDate(day.getDate() + 1)
   const from = new Date(day); from.setHours(9, 0, 0, 0)
   const until = new Date(day); until.setHours(23, 0, 0, 0)
-  return { city: '上海', from: localValue(from), until: localValue(until), budget: 500, people: 2, preference: '安排两项不冲突的本地体验，优先适合朋友聚会的活动' }
+  return { city: '上海', from: localValue(from), until: localValue(until), budget: 300, people: 2, preference: '安排两项时间不冲突的校园活动，优先选择音乐演出或展览' }
 }
 
 export default function Planner({ session, openAuth, sessionFailure }) {
@@ -60,10 +60,10 @@ export default function Planner({ session, openAuth, sessionFailure }) {
   const output = task?.result
   const result = output?.result
   return <section className="planner-page">
-    <div className="heading"><div><p className="eyebrow"><Sparkles size={14}/>DISCOVERY + PLANNER</p><h1>智能行程规划</h1><p className="muted">Agent 负责筛选与组合，预算、时间冲突和实时余量由 Java 再校验。</p></div></div>
+    <div className="heading"><div><p className="eyebrow"><Sparkles size={14}/>CAMPUS EVENT PLANNER</p><h1>校园活动规划</h1><p className="muted">Agent 负责筛选与组合，预算、时间冲突和实时余票由程序再次校验。</p></div></div>
     <div className="planner-layout">
       <form className="planner-form" onSubmit={submit}>
-        <div className="section-title"><BrainCircuit size={19}/><div><h2>规划条件</h2><p className="muted small">规划只生成建议，不会自动预约。</p></div></div>
+        <div className="section-title"><BrainCircuit size={19}/><div><h2>规划条件</h2><p className="muted small">规划只生成建议，不会自动抢票。</p></div></div>
         <label><span><MapPin size={15}/>城市</span><input value={form.city} maxLength={60} required onChange={e => setForm({ ...form, city: e.target.value })}/></label>
         <div className="field-grid">
           <label><span><CalendarDays size={15}/>开始时间</span><input type="datetime-local" value={form.from} required onChange={e => setForm({ ...form, from: e.target.value })}/></label>
@@ -76,10 +76,10 @@ export default function Planner({ session, openAuth, sessionFailure }) {
         <button className="primary" disabled={busy || (task && !terminal.has(task.status))}>{!session ? '登录后规划' : busy ? '正在提交…' : task && !terminal.has(task.status) ? 'Agent 正在规划…' : '生成行程建议'}</button>
       </form>
       <div className="plan-output">
-        {!task ? <div className="plan-placeholder"><BrainCircuit size={34}/><h2>从明确约束开始</h2><p className="muted">系统先检索候选活动，再组合行程，最后用确定性规则复核。</p></div> : !terminal.has(task.status) ? <div className="plan-placeholder"><span className="spinner"/><h2>正在筛选活动并编排行程</h2><p className="muted small">任务 {task.id.slice(0, 8)} · {task.status === 'QUEUED' ? '等待执行' : '执行中'}</p><button className="text-button" onClick={cancel}><X size={15}/>取消任务</button></div> : result?.status === 'READY' ? <>
+        {!task ? <div className="plan-placeholder"><BrainCircuit size={34}/><h2>从时间和预算开始</h2><p className="muted">系统先检索候选校园活动，再组合安排，最后校验时间和余票。</p></div> : !terminal.has(task.status) ? <div className="plan-placeholder"><span className="spinner"/><h2>正在筛选活动并编排行程</h2><p className="muted small">任务 {task.id.slice(0, 8)} · {task.status === 'QUEUED' ? '等待执行' : '执行中'}</p><button className="text-button" onClick={cancel}><X size={15}/>取消任务</button></div> : result?.status === 'READY' ? <>
           <div className="plan-summary"><span className="status confirmed">可执行方案</span><span className="muted small">{output.mode} · {output.modelCalls} 次模型调用</span></div>
           <div className="timeline">{(output.selected || []).map((item, index) => <article className="plan-stop" key={item.id}><div className="step">{index + 1}</div><div><p className="muted small">{dateLabel(item.startsAt)} - {dateLabel(item.endsAt)} · {item.area}</p><h2>{item.title}</h2><p>{item.description}</p><div className="plan-meta"><span>¥{money(item.priceCents)} / 人</span><span>余量 {item.available}</span></div></div></article>)}</div>
-          <p className="plan-note">提交预约时会重新校验库存和购买资格，规划结果不锁定名额。</p>
+          <p className="plan-note">正式抢票时会重新校验余票和购买资格，规划结果不会提前锁定名额。</p>
         </> : <div className="plan-placeholder"><BrainCircuit size={34}/><h2>{result?.status === 'NO_MATCH' ? '没有满足全部条件的活动' : result?.status === 'NEEDS_REFINEMENT' ? '条件需要调整' : '本次规划未完成'}</h2><p className="muted">{result?.issues?.join('；') || task.errorCode || '请稍后重试。'}</p><button className="outline" onClick={() => setTask(null)}>调整条件</button></div>}
       </div>
     </div>

@@ -1,0 +1,302 @@
+[
+  {
+    "case": "bearer-c8-uniform20",
+    "evidence": "backend/evidence/multilevel-benchmark-1791196421795",
+    "environment": {
+      "authMode": "bearer",
+      "concurrency": 8,
+      "shopCount": 20,
+      "distribution": "uniform",
+      "rounds": 4,
+      "seconds": 20,
+      "warmupSeconds": 5,
+      "jarSha256": "0985d6577594fff613a98cf6d65fab5323877b1ae1b55bdc5ed35cbef96e60f7",
+      "cpu": "Apple M5",
+      "cpuCount": 10
+    },
+    "modes": {
+      "ttl": {
+        "p95": 3.2617505000016536,
+        "qps": 4979.709630691103,
+        "p95Range": [
+          2.9996249999967404,
+          3.5771249999997963
+        ],
+        "qpsRange": [
+          4678.9806435387045,
+          5275.607236770906
+        ],
+        "requests": 398302,
+        "errors": {},
+        "databaseReads": 81,
+        "localHits": 0
+      },
+      "optimized": {
+        "p95": 1.790729000003921,
+        "qps": 11003.957419576891,
+        "p95Range": [
+          1.663834000006318,
+          1.8991669999959413
+        ],
+        "qpsRange": [
+          10488.70110397243,
+          11420.48462602974
+        ],
+        "requests": 878393,
+        "errors": {},
+        "databaseReads": 320,
+        "localHits": 874027
+      }
+    },
+    "pairedRounds": [
+      {
+        "round": 1,
+        "p95Reduction": 0.5015785022877721,
+        "qpsRatio": 2.369048647272373
+      },
+      {
+        "round": 2,
+        "p95Reduction": 0.3856480729714611,
+        "qpsRatio": 2.0470578599224902
+      },
+      {
+        "round": 3,
+        "p95Reduction": 0.4453193315804055,
+        "qpsRatio": 2.164771582393232
+      },
+      {
+        "round": 4,
+        "p95Reduction": 0.47597479959209055,
+        "qpsRatio": 2.258897171451711
+      }
+    ],
+    "p95Reduction": 0.4509914231628037,
+    "qpsRatio": 2.2097588485394724
+  },
+  {
+    "case": "cookie-c32-hot100",
+    "evidence": "backend/evidence/multilevel-benchmark-1791196114015",
+    "environment": {
+      "authMode": "cookie",
+      "concurrency": 32,
+      "shopCount": 100,
+      "distribution": "hot80",
+      "rounds": 4,
+      "seconds": 20,
+      "warmupSeconds": 5,
+      "jarSha256": "0985d6577594fff613a98cf6d65fab5323877b1ae1b55bdc5ed35cbef96e60f7",
+      "cpu": "Apple M5",
+      "cpuCount": 10
+    },
+    "modes": {
+      "ttl": {
+        "p95": 13.104604500025744,
+        "qps": 4549.045005671187,
+        "p95Range": [
+          9.136916999996174,
+          14.106417000002693
+        ],
+        "qpsRange": [
+          4165.818172759916,
+          6266.205442442678
+        ],
+        "requests": 390665,
+        "errors": {
+          "SHOP_DB_BUSY": 1
+        },
+        "databaseReads": 440,
+        "localHits": 0
+      },
+      "optimized": {
+        "p95": 12.369375000009313,
+        "qps": 5363.705410560325,
+        "p95Range": [
+          9.742459000000963,
+          14.21279200000572
+        ],
+        "qpsRange": [
+          4896.496357457477,
+          6626.507792102613
+        ],
+        "requests": 445184,
+        "errors": {},
+        "databaseReads": 1600,
+        "localHits": 426028
+      }
+    },
+    "pairedRounds": [
+      {
+        "round": 1,
+        "p95Reduction": -0.06627421481502371,
+        "qpsRatio": 1.057499287721962
+      },
+      {
+        "round": 2,
+        "p95Reduction": -0.007540894332203951,
+        "qpsRatio": 1.1753984822178343
+      },
+      {
+        "round": 3,
+        "p95Reduction": 0.11351983001741184,
+        "qpsRatio": 1.2552250396005586
+      },
+      {
+        "round": 4,
+        "p95Reduction": -0.0035393778834660328,
+        "qpsRatio": 1.1067964668498764
+      }
+    ],
+    "p95Reduction": 0.0561046691653293,
+    "qpsRatio": 1.179083830534435
+  },
+  {
+    "case": "cookie-c32-uniform20",
+    "evidence": "backend/evidence/multilevel-benchmark-1791195811898",
+    "environment": {
+      "authMode": "cookie",
+      "concurrency": 32,
+      "shopCount": 20,
+      "distribution": "uniform",
+      "rounds": 4,
+      "seconds": 20,
+      "warmupSeconds": 5,
+      "jarSha256": "0985d6577594fff613a98cf6d65fab5323877b1ae1b55bdc5ed35cbef96e60f7",
+      "cpu": "Apple M5",
+      "cpuCount": 10
+    },
+    "modes": {
+      "ttl": {
+        "p95": 12.851958500017645,
+        "qps": 4604.588003684946,
+        "p95Range": [
+          9.424375000002328,
+          13.767791999998735
+        ],
+        "qpsRange": [
+          4241.071613013024,
+          6476.599785078848
+        ],
+        "requests": 398643,
+        "errors": {
+          "SHOP_DB_BUSY": 2
+        },
+        "databaseReads": 130,
+        "localHits": 0
+      },
+      "optimized": {
+        "p95": 10.85627050002222,
+        "qps": 5811.909882094652,
+        "p95Range": [
+          7.866458000004059,
+          11.868125000008149
+        ],
+        "qpsRange": [
+          5519.670838111645,
+          7537.014243858547
+        ],
+        "requests": 493717,
+        "errors": {},
+        "databaseReads": 320,
+        "localHits": 488111
+      }
+    },
+    "pairedRounds": [
+      {
+        "round": 1,
+        "p95Reduction": 0.1653071954371388,
+        "qpsRatio": 1.16373011981113
+      },
+      {
+        "round": 2,
+        "p95Reduction": 0.20030750028687794,
+        "qpsRatio": 1.361164045787579
+      },
+      {
+        "round": 3,
+        "p95Reduction": 0.12380838124384408,
+        "qpsRatio": 1.2780354038796413
+      },
+      {
+        "round": 4,
+        "p95Reduction": 0.11976938169451767,
+        "qpsRatio": 1.1964542711921784
+      }
+    ],
+    "p95Reduction": 0.15528279211239948,
+    "qpsRatio": 1.2621997619425482
+  },
+  {
+    "case": "cookie-c8-uniform20",
+    "evidence": "backend/evidence/multilevel-benchmark-1791195476036",
+    "environment": {
+      "authMode": "cookie",
+      "concurrency": 8,
+      "shopCount": 20,
+      "distribution": "uniform",
+      "rounds": 4,
+      "seconds": 20,
+      "warmupSeconds": 5,
+      "jarSha256": "0985d6577594fff613a98cf6d65fab5323877b1ae1b55bdc5ed35cbef96e60f7",
+      "cpu": "Apple M5",
+      "cpuCount": 10
+    },
+    "modes": {
+      "ttl": {
+        "p95": 4.444229000000632,
+        "qps": 3071.397496727316,
+        "p95Range": [
+          2.8057499999995343,
+          5.252999999996973
+        ],
+        "qpsRange": [
+          2703.3798414681796,
+          4863.910294391008
+        ],
+        "requests": 274226,
+        "errors": {},
+        "databaseReads": 80,
+        "localHits": 0
+      },
+      "optimized": {
+        "p95": 3.3988959999987856,
+        "qps": 4718.0908704237045,
+        "p95Range": [
+          3.099291999998968,
+          3.6886669999803416
+        ],
+        "qpsRange": [
+          4353.205972990747,
+          5434.592780916097
+        ],
+        "requests": 384509,
+        "errors": {},
+        "databaseReads": 320,
+        "localHits": 380850
+      }
+    },
+    "pairedRounds": [
+      {
+        "round": 1,
+        "p95Reduction": -0.10462158068234251,
+        "qpsRatio": 1.1173299777307142
+      },
+      {
+        "round": 2,
+        "p95Reduction": 0.33370655150334627,
+        "qpsRatio": 1.724260063683888
+      },
+      {
+        "round": 3,
+        "p95Reduction": 0.30542851703565965,
+        "qpsRatio": 1.6102827675990077
+      },
+      {
+        "round": 4,
+        "p95Reduction": 0.11372729457702146,
+        "qpsRatio": 1.36477419597272
+      }
+    ],
+    "p95Reduction": 0.235211326869452,
+    "qpsRatio": 1.5361381506141745
+  }
+]

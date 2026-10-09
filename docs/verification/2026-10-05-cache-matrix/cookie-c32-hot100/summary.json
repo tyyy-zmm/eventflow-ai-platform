@@ -1,0 +1,29 @@
+{
+  "rounds": 4,
+  "seconds": 20,
+  "concurrency": 32,
+  "aggregate": {
+    "ttl": {
+      "medianQps": 4549.045005671187,
+      "medianP95Ms": 13.104604500025744,
+      "medianP99Ms": 18.901542000021436,
+      "totalDatabaseReads": 440,
+      "totalRequests": 390665,
+      "errorRate": 0.000002559737882843431
+    },
+    "optimized": {
+      "medianQps": 5363.705410560325,
+      "medianP95Ms": 12.369375000009313,
+      "medianP99Ms": 18.13456250001036,
+      "totalDatabaseReads": 1600,
+      "totalRequests": 445184,
+      "errorRate": 0
+    }
+  },
+  "comparisons": {
+    "optimizedVsRedisTtl": {
+      "qpsRatio": 1.179083830534435,
+      "p95Reduction": 0.0561046691653293
+    }
+  }
+}

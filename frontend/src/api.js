@@ -18,6 +18,11 @@ export async function api(path, { method = 'GET', body, csrf, signal } = {}) {
 }
 
 const messages = {
+  SANDBOX_PAYMENTS_DISABLED: '当前环境未开启模拟支付，请联系演示环境维护者。',
+  ORDER_NOT_PAYABLE: '订单已关闭或超过支付时间，请刷新订单查看最新状态。',
+  PAYMENT_REQUIRED: '这笔订单已进入支付流程，请通过模拟支付完成。',
+  PAYMENT_NOT_FOUND: '未找到付款记录，请刷新重试。',
+  PAYMENT_AMOUNT_MISMATCH: '付款金额与订单不一致，请刷新订单。',
   BAD_CREDENTIALS: '账号或密码不正确。', ACCOUNT_UNAVAILABLE: '这个用户名已被使用。',
   INVALID_USERNAME: '用户名需为 4–24 位小写字母、数字或下划线，以字母开头。',
   INVALID_PASSWORD: '密码至少 12 个字符，UTF-8 编码不超过 72 字节。',
@@ -27,7 +32,7 @@ const messages = {
   SESSION_CHANGED: '其他页面已切换账号，请重新确认登录。',
   ALREADY_PURCHASED: '此活动每人限购一次，取消或过期后也不能再次购买。',
   SOLD_OUT: '本场活动已售罄。', ACTIVITY_CLOSED: '本场活动已结束。',
-  STILL_AVAILABLE: '当前仍有名额，可以直接抢券。', WAITLIST_NOT_FOUND: '未找到这条候补记录。',
+  STILL_AVAILABLE: '当前仍有余票，可以直接抢票。', WAITLIST_NOT_FOUND: '未找到这条候补记录。',
   WAITLIST_TERMINAL: '这条候补记录已结束，无法再次操作。',
   ACTIVITY_NOT_FOUND: '活动不存在或已下架。', INVALID_REQUEST: '请求参数不正确。',
   PROCESS_DEADLINE: '处理已超时，本次请求不会再生成订单。',

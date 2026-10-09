@@ -13,6 +13,17 @@ const rounds=smoke?1:Number(process.env.CACHE_BENCH_ROUNDS??3);
 const concurrency=Number(process.env.CACHE_BENCH_CONCURRENCY??8);
 const shopCount=Number(process.env.CACHE_BENCH_SHOPS??1);
 const authMode=process.env.CACHE_BENCH_AUTH??'bearer';
+const distribution=process.env.CACHE_BENCH_DISTRIBUTION??'uniform';
+const warmupSeconds=Number(process.env.CACHE_BENCH_WARMUP_SECONDS??0);
+const modes=(process.env.CACHE_BENCH_MODES??'direct,ttl,optimized').split(',');
+if(!['uniform','hot80'].includes(distribution)||!Number.isFinite(warmupSeconds)||warmupSeconds<0||warmupSeconds>60) throw new Error('Invalid workload');
+if(new Set(modes).size!==modes.length||!modes.includes('ttl')||!modes.includes('optimized')||modes.some(x=>!['direct','ttl','optimized'].includes(x))) throw new Error('Invalid modes');
+// Deterministic 80% to the hottest 10% of shops; same starting sequence per mode.
+function shopOffset(sequence) {
+  if(distribution==='uniform'||shopCount===1) return sequence%shopCount;
+  const hot=Math.max(1,Math.floor(shopCount*.1)),slot=sequence%10,cycle=Math.floor(sequence/10);
+  return slot<8 ? (cycle*8+slot)%hot : hot+(cycle*2+slot-8)%(shopCount-hot);
+}
 if(!['bearer','cookie'].includes(authMode)) throw new Error('Invalid auth mode');
 if(!Number.isInteger(shopCount)||shopCount<1||shopCount>100) throw new Error('Invalid shop count');
 if(!Number.isFinite(seconds)||seconds<1||!Number.isInteger(rounds)||rounds<1||!Number.isInteger(concurrency)||concurrency<1||concurrency>48)
@@ -56,6 +67,7 @@ try {
   await launch(0);await launch(1);
   const id=Date.now();
   for(let n=1;n<shopCount;n++) {
+    await sleep(30);
     await checked(0,`/v2/admin/fixtures/${id+n}?stock=10`,{method:'POST'});
     await checked(0,`/v2/admin/shops/${id+n}`,{method:'PUT',body:{name:'Changed across instances',description:'Synthetic benchmark'}});
   }
@@ -83,29 +95,38 @@ try {
     }
   }
   save(path.join(dir,'environment.json'),{date:new Date().toISOString(),node:process.version,platform:os.platform(),arch:os.arch(),cpu:os.cpus()[0]?.model,
-    manifest:sourceManifest(),jarSha256:createHash('sha256').update(readFileSync(path.join(root,'target/life-choice-backend-1.0.0.jar'))).digest('hex'),authMode,shopCount,cpuCount:os.cpus().length,totalMemory:os.totalmem(),hostLoad:os.loadavg(),instances:2,heapPerInstance:'384m',concurrency,seconds,rounds,smoke,syntheticUsers:userAuthorizations.length,invalidationObservedMs,
+    manifest:sourceManifest(),jarSha256:createHash('sha256').update(readFileSync(path.join(root,'target/life-choice-backend-1.0.0.jar'))).digest('hex'),authMode,shopCount,distribution,warmupSeconds,modes,cpuCount:os.cpus().length,totalMemory:os.totalmem(),hostLoad:os.loadavg(),instances:2,heapPerInstance:'384m',concurrency,seconds,rounds,smoke,syntheticUsers:userAuthorizations.length,invalidationObservedMs,
     scope:'Closed-loop authenticated HTTP on one host; successful shop reads only. Not maximum capacity or order TPS. Bearer mode excludes cookie session database lookup; cookie mode includes it.'});
-  const modes=['direct','ttl','optimized'];
   for(let round=0;round<rounds;round++) for(let offset=0;offset<modes.length;offset++) {
     const mode=modes[(round+offset)%modes.length];
     const routeFor=shop=>mode==='optimized'?`/v2/shops/${shop}`:`/v2/benchmark/${mode}/${shop}`;
     for(let i=0;i<Math.max(100,shopCount*2);i++) await checked(i%2,routeFor(id+i%shopCount),{authorization:userAuthorizations[i%userAuthorizations.length]});
+    const warmStarted=performance.now();
+    await Promise.all(Array.from({length:concurrency},(_,worker)=>(async()=>{
+      let n=worker;
+      while(performance.now()-warmStarted<warmupSeconds*1000) {
+        await request(worker%2,routeFor(id+shopOffset(n)),{authorization:userAuthorizations[n%userAuthorizations.length]});
+        n+=concurrency;
+      }
+    })()));
+    requestSequence=0;
+    const clientCpu=process.cpuUsage(),hostLoadBefore=os.loadavg();
     const before=await Promise.all(bases.map((_,i)=>checked(i,'/v2/admin/status')));
     const samples=[],started=performance.now();
     await Promise.all(Array.from({length:concurrency},(_,worker)=>(async()=>{
       while(performance.now()-started<seconds*1000) {
         const sent=performance.now();
-        const sequence=requestSequence++,shop=id+sequence%shopCount;
+        const sequence=requestSequence++,shop=id+shopOffset(sequence);
         try {const r=await request(worker%2,routeFor(shop),{authorization:userAuthorizations[sequence%userAuthorizations.length]});const valid=r.status===200 && r.data.id===shop && r.data.name==='Changed across instances' && r.data.description==='Synthetic benchmark';samples.push({latencyMs:performance.now()-sent,status:r.status,valid,...(!valid?{errorCode:r.data.error??'INVALID_BODY'}:{})});}
         catch(error) {samples.push({latencyMs:performance.now()-sent,status:0,error:error.message});}
       }
     })()));
     const elapsedSeconds=(performance.now()-started)/1000;
     const after=await Promise.all(bases.map((_,i)=>checked(i,'/v2/admin/status')));
-    const success=samples.filter(s=>s.valid===true),statuses={};
-    for(const sample of samples) statuses[sample.status]=(statuses[sample.status]??0)+1;
+    const success=samples.filter(s=>s.valid===true),statuses={},errorCodes={};
+    for(const sample of samples) {statuses[sample.status]=(statuses[sample.status]??0)+1;if(!sample.valid){const code=sample.errorCode??sample.error??'UNKNOWN';errorCodes[code]=(errorCodes[code]??0)+1;}}
     const delta=key=>after.reduce((sum,item,i)=>sum+item.cache[key]-before[i].cache[key],0);
-    const result={round:round+1,mode,elapsedSeconds,requests:samples.length,statuses,errorRate:1-success.length/samples.length,successfulQps:success.length/elapsedSeconds,
+    const result={round:round+1,mode,elapsedSeconds,hostLoadBefore,hostLoadAfter:os.loadavg(),clientCpuMicros:process.cpuUsage(clientCpu),requests:samples.length,statuses,errorCodes,errorRate:1-success.length/samples.length,successfulQps:success.length/elapsedSeconds,
       successP95Ms:percentile(success.map(s=>s.latencyMs),.95),successP99Ms:percentile(success.map(s=>s.latencyMs),.99),
       meanSuccessLatencyMs:success.reduce((n,s)=>n+s.latencyMs,0)/success.length,
       invalidBodies:samples.filter(s=>s.status===200 && !s.valid).length,
@@ -113,7 +134,7 @@ try {
     results.push(result);save(path.join(dir,`${round+1}-${mode}-raw.json`),samples);save(path.join(dir,'results.json'),results);
     console.log(JSON.stringify(result));
   }
-  const median=values=>percentile(values,.5);
+  const median=values=>{const sorted=[...values].sort((a,b)=>a-b),mid=Math.floor(sorted.length/2);return sorted.length%2?sorted[mid]:(sorted[mid-1]+sorted[mid])/2;};
   const aggregate=Object.fromEntries(modes.map(mode=>{
     const rows=results.filter(x=>x.mode===mode);
     return [mode,{medianQps:median(rows.map(x=>x.successfulQps)),medianP95Ms:median(rows.map(x=>x.successP95Ms)),
@@ -122,7 +143,7 @@ try {
   }));
   const ratio=(value,base)=>base===0?null:value/base;
   const summary={rounds,seconds,concurrency,aggregate,comparisons:{
-    optimizedVsDirect:{qpsRatio:ratio(aggregate.optimized.medianQps,aggregate.direct.medianQps),p95Reduction:1-ratio(aggregate.optimized.medianP95Ms,aggregate.direct.medianP95Ms)},
+    ...(aggregate.direct?{optimizedVsDirect:{qpsRatio:ratio(aggregate.optimized.medianQps,aggregate.direct.medianQps),p95Reduction:1-ratio(aggregate.optimized.medianP95Ms,aggregate.direct.medianP95Ms)}}:{}),
     optimizedVsRedisTtl:{qpsRatio:ratio(aggregate.optimized.medianQps,aggregate.ttl.medianQps),p95Reduction:1-ratio(aggregate.optimized.medianP95Ms,aggregate.ttl.medianP95Ms)}
   }};
   save(path.join(dir,'summary.json'),summary);console.log(JSON.stringify(summary));

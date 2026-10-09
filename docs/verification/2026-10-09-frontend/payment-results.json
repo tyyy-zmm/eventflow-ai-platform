@@ -1,0 +1,11 @@
+{
+  "checks": [
+    "lost callback response recovered by status polling",
+    "paid order survives reload",
+    "history wording and mobile layout",
+    "late receipt after order cancellation is refunded",
+    "refund status can be reopened from a closed order"
+  ],
+  "errors": [],
+  "passed": true
+}

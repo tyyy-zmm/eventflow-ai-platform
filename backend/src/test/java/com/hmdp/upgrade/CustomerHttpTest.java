@@ -78,7 +78,7 @@ class CustomerHttpTest {
         assertEquals("REFUNDED",request(HttpMethod.POST,route,alice,Map.of("channelId",channel,"amountCents",990)).getBody().get("outcome"));
     }
     @Test void publicCatalogFiltersAndLiveStock() {
-        var list=request(HttpMethod.GET,"/catalog/shops?q=西岸",null,null);assertEquals(200,list.getStatusCode().value());
+        var list=request(HttpMethod.GET,"/catalog/shops?q=星河",null,null);assertEquals(200,list.getStatusCode().value());
         assertEquals(1,list.getBody().get("total"));
         var detail=request(HttpMethod.GET,"/catalog/shops/9101",null,null);assertEquals(200,detail.getStatusCode().value());
         assertFalse(((List)detail.getBody().get("offers")).isEmpty());

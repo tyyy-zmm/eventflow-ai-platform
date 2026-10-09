@@ -1,0 +1,269 @@
+[
+  {
+    "round": 1,
+    "mode": "ttl",
+    "elapsedSeconds": 20.007875165999998,
+    "hostLoadBefore": [
+      9.6796875,
+      12.70068359375,
+      10.3759765625
+    ],
+    "hostLoadAfter": [
+      13.58203125,
+      13.34228515625,
+      10.671875
+    ],
+    "clientCpuMicros": {
+      "user": 16754700,
+      "system": 2533383
+    },
+    "requests": 129583,
+    "statuses": {
+      "200": 129583
+    },
+    "errorCodes": {},
+    "errorRate": 0,
+    "successfulQps": 6476.599785078848,
+    "successP95Ms": 9.424375000002328,
+    "successP99Ms": 14.825082999988808,
+    "meanSuccessLatencyMs": 4.939985773527357,
+    "invalidBodies": 0,
+    "databaseReads": 33,
+    "localHits": 0,
+    "redisHits": 129550
+  },
+  {
+    "round": 1,
+    "mode": "optimized",
+    "elapsedSeconds": 20.004207916000013,
+    "hostLoadBefore": [
+      14.17578125,
+      13.46923828125,
+      10.73193359375
+    ],
+    "hostLoadAfter": [
+      18.2939453125,
+      14.43212890625,
+      11.13916015625
+    ],
+    "clientCpuMicros": {
+      "user": 20232130,
+      "system": 2974135
+    },
+    "requests": 150772,
+    "statuses": {
+      "200": 150772
+    },
+    "errorCodes": {},
+    "errorRate": 0,
+    "successfulQps": 7537.014243858547,
+    "successP95Ms": 7.866458000004059,
+    "successP99Ms": 13.34541700000409,
+    "meanSuccessLatencyMs": 4.245152863701491,
+    "invalidBodies": 0,
+    "databaseReads": 80,
+    "localHits": 149312,
+    "redisHits": 1460
+  },
+  {
+    "round": 2,
+    "mode": "optimized",
+    "elapsedSeconds": 20.009374333000014,
+    "hostLoadBefore": [
+      18.75048828125,
+      14.5908203125,
+      11.21435546875
+    ],
+    "hostLoadAfter": [
+      20.02392578125,
+      15.150390625,
+      11.49267578125
+    ],
+    "clientCpuMicros": {
+      "user": 19185312,
+      "system": 2846571
+    },
+    "requests": 115510,
+    "statuses": {
+      "200": 115510
+    },
+    "errorCodes": {},
+    "errorRate": 0,
+    "successfulQps": 5772.794195243662,
+    "successP95Ms": 11.010000000009313,
+    "successP99Ms": 17.473124999989523,
+    "meanSuccessLatencyMs": 5.5421561666003605,
+    "invalidBodies": 0,
+    "databaseReads": 80,
+    "localHits": 114077,
+    "redisHits": 1433
+  },
+  {
+    "round": 2,
+    "mode": "ttl",
+    "elapsedSeconds": 20.003670708999998,
+    "hostLoadBefore": [
+      19.14111328125,
+      15.0478515625,
+      11.47802734375
+    ],
+    "hostLoadAfter": [
+      23.03369140625,
+      16.1689453125,
+      11.9609375
+    ],
+    "clientCpuMicros": {
+      "user": 16291391,
+      "system": 2456368
+    },
+    "requests": 84837,
+    "statuses": {
+      "200": 84837
+    },
+    "errorCodes": {},
+    "errorRate": 0,
+    "successfulQps": 4241.071613013024,
+    "successP95Ms": 13.767791999998735,
+    "successP99Ms": 20.11425000001327,
+    "meanSuccessLatencyMs": 7.544220785753896,
+    "invalidBodies": 0,
+    "databaseReads": 27,
+    "localHits": 0,
+    "redisHits": 84810
+  },
+  {
+    "round": 3,
+    "mode": "ttl",
+    "elapsedSeconds": 20.00337300000002,
+    "hostLoadBefore": [
+      23.35107421875,
+      16.3486328125,
+      12.048828125
+    ],
+    "hostLoadAfter": [
+      25.4638671875,
+      17.30712890625,
+      12.4931640625
+    ],
+    "clientCpuMicros": {
+      "user": 16438756,
+      "system": 2455717
+    },
+    "requests": 86394,
+    "statuses": {
+      "200": 86392,
+      "503": 2
+    },
+    "errorCodes": {
+      "SHOP_DB_BUSY": 2
+    },
+    "errorRate": 0.000023149755770113245,
+    "successfulQps": 4318.871622300894,
+    "successP95Ms": 13.545125000004191,
+    "successP99Ms": 19.588999999978114,
+    "meanSuccessLatencyMs": 7.408057872650196,
+    "invalidBodies": 0,
+    "databaseReads": 39,
+    "localHits": 0,
+    "redisHits": 86353
+  },
+  {
+    "round": 3,
+    "mode": "optimized",
+    "elapsedSeconds": 20.002279708000017,
+    "hostLoadBefore": [
+      24.54541015625,
+      17.251953125,
+      12.501953125
+    ],
+    "hostLoadAfter": [
+      23.99072265625,
+      17.77490234375,
+      12.83154296875
+    ],
+    "clientCpuMicros": {
+      "user": 19119394,
+      "system": 2849153
+    },
+    "requests": 110406,
+    "statuses": {
+      "200": 110406
+    },
+    "errorCodes": {},
+    "errorRate": 0,
+    "successfulQps": 5519.670838111645,
+    "successP95Ms": 11.868125000008149,
+    "successP99Ms": 17.53545799999847,
+    "meanSuccessLatencyMs": 5.7965989367787065,
+    "invalidBodies": 0,
+    "databaseReads": 80,
+    "localHits": 108991,
+    "redisHits": 1415
+  },
+  {
+    "round": 4,
+    "mode": "optimized",
+    "elapsedSeconds": 20.00145079199999,
+    "hostLoadBefore": [
+      24.7119140625,
+      18.02734375,
+      12.94970703125
+    ],
+    "hostLoadAfter": [
+      25.4814453125,
+      18.61328125,
+      13.27587890625
+    ],
+    "clientCpuMicros": {
+      "user": 19104037,
+      "system": 2931356
+    },
+    "requests": 117029,
+    "statuses": {
+      "200": 117029
+    },
+    "errorCodes": {},
+    "errorRate": 0,
+    "successfulQps": 5851.025568945642,
+    "successP95Ms": 10.702541000035126,
+    "successP99Ms": 16.442624999996042,
+    "meanSuccessLatencyMs": 5.468516900793822,
+    "invalidBodies": 0,
+    "databaseReads": 80,
+    "localHits": 115731,
+    "redisHits": 1298
+  },
+  {
+    "round": 4,
+    "mode": "ttl",
+    "elapsedSeconds": 20.00468524999998,
+    "hostLoadBefore": [
+      26.56396484375,
+      18.95166015625,
+      13.42626953125
+    ],
+    "hostLoadAfter": [
+      26.86474609375,
+      19.4931640625,
+      13.7470703125
+    ],
+    "clientCpuMicros": {
+      "user": 17880273,
+      "system": 2642282
+    },
+    "requests": 97829,
+    "statuses": {
+      "200": 97829
+    },
+    "errorCodes": {},
+    "errorRate": 0,
+    "successfulQps": 4890.304385068997,
+    "successP95Ms": 12.158792000031099,
+    "successP99Ms": 16.93412500002887,
+    "meanSuccessLatencyMs": 6.542430455325135,
+    "invalidBodies": 0,
+    "databaseReads": 31,
+    "localHits": 0,
+    "redisHits": 97798
+  }
+]

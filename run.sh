@@ -10,6 +10,8 @@ case "${1:-help}" in
   backend) exec bash backend/scripts/local.sh start --upgrade.demo-data=true "${@:2}" ;;
   frontend) exec npm --prefix frontend run dev ;;
   dev)
+    export SANDBOX_PAYMENTS="${SANDBOX_PAYMENTS:-true}"
+    export VITE_SANDBOX_PAYMENTS="${VITE_SANDBOX_PAYMENTS:-true}"
     bash backend/scripts/local.sh start --upgrade.demo-data=true & backend_pid=$!
     npm --prefix frontend run dev & frontend_pid=$!
     trap 'kill "$backend_pid" "$frontend_pid" 2>/dev/null || true; wait || true' EXIT

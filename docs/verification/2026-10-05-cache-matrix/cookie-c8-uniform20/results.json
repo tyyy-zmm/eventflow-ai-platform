@@ -1,0 +1,266 @@
+[
+  {
+    "round": 1,
+    "mode": "ttl",
+    "elapsedSeconds": 20.00057445799999,
+    "hostLoadBefore": [
+      8.5947265625,
+      8.29150390625,
+      7.765625
+    ],
+    "hostLoadAfter": [
+      9.90966796875,
+      8.611328125,
+      7.89208984375
+    ],
+    "clientCpuMicros": {
+      "user": 11789388,
+      "system": 1673720
+    },
+    "requests": 97281,
+    "statuses": {
+      "200": 97281
+    },
+    "errorCodes": {},
+    "errorRate": 0,
+    "successfulQps": 4863.910294391008,
+    "successP95Ms": 2.8057499999995343,
+    "successP99Ms": 4.521040999999968,
+    "meanSuccessLatencyMs": 1.6445873501609054,
+    "invalidBodies": 0,
+    "databaseReads": 20,
+    "localHits": 0,
+    "redisHits": 97261
+  },
+  {
+    "round": 1,
+    "mode": "optimized",
+    "elapsedSeconds": 20.001682625000015,
+    "hostLoadBefore": [
+      10.07666015625,
+      8.66748046875,
+      7.916015625
+    ],
+    "hostLoadAfter": [
+      16.091796875,
+      10.0517578125,
+      8.4248046875
+    ],
+    "clientCpuMicros": {
+      "user": 15838179,
+      "system": 2215227
+    },
+    "requests": 108701,
+    "statuses": {
+      "200": 108701
+    },
+    "errorCodes": {},
+    "errorRate": 0,
+    "successfulQps": 5434.592780916097,
+    "successP95Ms": 3.099291999998968,
+    "successP99Ms": 5.922875000018394,
+    "meanSuccessLatencyMs": 1.4717908852172479,
+    "invalidBodies": 0,
+    "databaseReads": 80,
+    "localHits": 107773,
+    "redisHits": 928
+  },
+  {
+    "round": 2,
+    "mode": "optimized",
+    "elapsedSeconds": 20.000742750000004,
+    "hostLoadBefore": [
+      18.56640625,
+      10.6650390625,
+      8.650390625
+    ],
+    "hostLoadAfter": [
+      23.22607421875,
+      12.3681640625,
+      9.3203125
+    ],
+    "clientCpuMicros": {
+      "user": 15704131,
+      "system": 2205943
+    },
+    "requests": 100984,
+    "statuses": {
+      "200": 100984
+    },
+    "errorCodes": {},
+    "errorRate": 0,
+    "successfulQps": 5049.012492298566,
+    "successP95Ms": 3.1492079999879934,
+    "successP99Ms": 5.867583000013838,
+    "meanSuccessLatencyMs": 1.5842028707121745,
+    "invalidBodies": 0,
+    "databaseReads": 80,
+    "localHits": 100079,
+    "redisHits": 905
+  },
+  {
+    "round": 2,
+    "mode": "ttl",
+    "elapsedSeconds": 20.002596667000006,
+    "hostLoadBefore": [
+      24.32861328125,
+      12.77685546875,
+      9.482421875
+    ],
+    "hostLoadAfter": [
+      23.458984375,
+      13.3251953125,
+      9.7548828125
+    ],
+    "clientCpuMicros": {
+      "user": 12114856,
+      "system": 1700576
+    },
+    "requests": 58572,
+    "statuses": {
+      "200": 58572
+    },
+    "errorCodes": {},
+    "errorRate": 0,
+    "successfulQps": 2928.2198194113084,
+    "successP95Ms": 4.726457999990089,
+    "successP99Ms": 7.106375000003027,
+    "meanSuccessLatencyMs": 2.731630010721867,
+    "invalidBodies": 0,
+    "databaseReads": 20,
+    "localHits": 0,
+    "redisHits": 58552
+  },
+  {
+    "round": 3,
+    "mode": "ttl",
+    "elapsedSeconds": 20.00384820900002,
+    "hostLoadBefore": [
+      23.501953125,
+      13.501953125,
+      9.837890625
+    ],
+    "hostLoadAfter": [
+      21.638671875,
+      13.7392578125,
+      10.0087890625
+    ],
+    "clientCpuMicros": {
+      "user": 12912079,
+      "system": 1800351
+    },
+    "requests": 54078,
+    "statuses": {
+      "200": 54078
+    },
+    "errorCodes": {},
+    "errorRate": 0,
+    "successfulQps": 2703.3798414681796,
+    "successP95Ms": 5.252999999996973,
+    "successP99Ms": 7.769832999998471,
+    "meanSuccessLatencyMs": 2.958724871888766,
+    "invalidBodies": 0,
+    "databaseReads": 20,
+    "localHits": 0,
+    "redisHits": 54058
+  },
+  {
+    "round": 3,
+    "mode": "optimized",
+    "elapsedSeconds": 20.002040000000036,
+    "hostLoadBefore": [
+      22.22802734375,
+      13.9921875,
+      10.11962890625
+    ],
+    "hostLoadAfter": [
+      21.818359375,
+      14.4296875,
+      10.3662109375
+    ],
+    "clientCpuMicros": {
+      "user": 16227790,
+      "system": 2406620
+    },
+    "requests": 87073,
+    "statuses": {
+      "200": 87073
+    },
+    "errorCodes": {},
+    "errorRate": 0,
+    "successfulQps": 4353.205972990747,
+    "successP95Ms": 3.6485840000095777,
+    "successP99Ms": 5.667750000022352,
+    "meanSuccessLatencyMs": 1.837397394944466,
+    "invalidBodies": 0,
+    "databaseReads": 80,
+    "localHits": 86159,
+    "redisHits": 914
+  },
+  {
+    "round": 4,
+    "mode": "optimized",
+    "elapsedSeconds": 20.00173574999999,
+    "hostLoadBefore": [
+      22.31298828125,
+      14.65478515625,
+      10.46923828125
+    ],
+    "hostLoadAfter": [
+      20.73681640625,
+      14.78955078125,
+      10.6142578125
+    ],
+    "clientCpuMicros": {
+      "user": 15756327,
+      "system": 2393845
+    },
+    "requests": 87751,
+    "statuses": {
+      "200": 87751
+    },
+    "errorCodes": {},
+    "errorRate": 0,
+    "successfulQps": 4387.169248548844,
+    "successP95Ms": 3.6886669999803416,
+    "successP99Ms": 5.799832999997307,
+    "meanSuccessLatencyMs": 1.823150063987875,
+    "invalidBodies": 0,
+    "databaseReads": 80,
+    "localHits": 86839,
+    "redisHits": 912
+  },
+  {
+    "round": 4,
+    "mode": "ttl",
+    "elapsedSeconds": 20.001087708000036,
+    "hostLoadBefore": [
+      22.51953125,
+      15.2578125,
+      10.8037109375
+    ],
+    "hostLoadAfter": [
+      19.35546875,
+      15.01220703125,
+      10.81884765625
+    ],
+    "clientCpuMicros": {
+      "user": 12086482,
+      "system": 1733747
+    },
+    "requests": 64295,
+    "statuses": {
+      "200": 64295
+    },
+    "errorCodes": {},
+    "errorRate": 0,
+    "successfulQps": 3214.575174043324,
+    "successP95Ms": 4.162000000011176,
+    "successP99Ms": 5.959708000009414,
+    "meanSuccessLatencyMs": 2.4883012675480534,
+    "invalidBodies": 0,
+    "databaseReads": 20,
+    "localHits": 0,
+    "redisHits": 64275
+  }
+]

@@ -7,7 +7,8 @@
     "dev": "vite --host 127.0.0.1",
     "build": "vite build",
     "preview": "vite preview --host 127.0.0.1",
-    "test:e2e": "node tests/customer-flow.mjs"
+    "test:e2e": "node tests/customer-flow.mjs",
+    "test:payments": "node tests/payment-flow.mjs"
   },
   "dependencies": {
     "@vitejs/plugin-react": "latest",

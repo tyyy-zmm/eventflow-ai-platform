@@ -29,21 +29,21 @@ public class DemoStorefront implements ApplicationRunner {
         var end=day.plusDays(1).atStartOfDay(ZoneId.of("Asia/Shanghai")).toInstant();
         var sessionDay=day.plusDays(1);
         String[][] stores={
-            {"西岸餐桌","炭烤牛排、当季蔬菜与双人套餐。","西餐","徐汇 · 西岸","西岸体验街区 18 号","/life-assets/steak.jpg","约会,安静"},
-            {"青柠小馆","泰式风味与新鲜香料，适合与朋友分享。","亚洲菜","静安 · 南京西路","南京西路体验街区 26 号","/life-assets/thai.jpg","朋友聚会,风味"},
-            {"街角小食","清爽小食、鲜虾与轻食组合。","轻食","杨浦 · 大学路","大学路体验街区 9 号","/life-assets/light.jpg","轻食,休闲"},
-            {"云间咖啡","手冲咖啡、当日甜点与安静阅读空间。","咖啡甜品","长宁 · 愚园路","愚园路体验街区 37 号","/life-assets/coffee.jpg","咖啡,独处,安静"},
-            {"沸腾里","鲜切食材与多人锅底套餐，适合聚会。","火锅","黄浦 · 新天地","马当路体验街区 12 号","/life-assets/hotpot.jpg","聚餐,热闹"},
-            {"炭火研究所","现烤肉串与时令小菜，提供双人组合。","烧烤","普陀 · 长寿路","长寿路体验街区 52 号","/life-assets/steak.jpg","夜间,朋友聚会"},
-            {"小小造物社","面向亲子的手作课程与主题创作体验。","亲子体验","浦东 · 前滩","前滩体验街区 21 号","/life-assets/family-craft.jpg","亲子,手作"},
-            {"城市攀岩馆","零基础攀岩体验与教练安全指导。","运动健身","虹口 · 北外滩","东大名路体验街区 66 号","/life-assets/climbing.jpg","运动,挑战"},
-            {"光影现场","小型展览、沉浸演出与周末限定活动。","展览演出","静安 · 苏河湾","北苏州路体验街区 8 号","/life-assets/gallery.jpg","展览,演出,周末"},
-            {"鮨月料理","当季刺身、炙烤小食与午间定食。","日料","徐汇 · 衡山路","衡山路体验街区 23 号","/life-assets/thai.jpg","日料,约会"},
-            {"麦香工房","现烤欧包、可颂与周末烘焙体验课。","烘焙体验","静安 · 武定路","武定路体验街区 41 号","/life-assets/coffee.jpg","烘焙,下午茶"},
-            {"栖心疗愈所","都市芳疗、肩颈舒缓与双人放松体验。","SPA按摩","长宁 · 古北","黄金城道体验街区 16 号","/life-assets/spa.jpg","放松,预约"},
-            {"回合制空间","桌游包间、主持带玩与多人主题局。","桌游娱乐","黄浦 · 人民广场","西藏中路体验街区 29 号","/life-assets/gallery.jpg","桌游,朋友聚会"},
-            {"毛球日记","宠物洗护、基础美容与陪伴互动体验。","宠物生活","浦东 · 世纪公园","梅花路体验街区 35 号","/life-assets/family-craft.jpg","宠物,休闲"},
-            {"映刻写真馆","轻写真、证件照与城市旅拍套餐。","摄影写真","杨浦 · 五角场","大学路体验街区 55 号","/life-assets/gallery.jpg","摄影,纪念"}
+            {"星河音乐节","校园乐队、原创歌手与夜间舞台联合演出。","音乐演出","东校区 · 体育场","东校区体育场","/event-assets/stage.svg","音乐,露天,热门"},
+            {"新生脱口秀专场","由校内喜剧社带来的原创段子与互动演出。","戏剧舞台","南校区 · 大礼堂","南校区大礼堂","/event-assets/stage.svg","喜剧,互动,室内"},
+            {"青春辩论赛决赛","年度校园辩论赛决赛，现场见证冠军诞生。","校园赛事","主校区 · 报告厅","主校区综合报告厅","/event-assets/lecture.svg","辩论,决赛,思辨"},
+            {"毕业季草坪音乐会","民谣、流行与合唱节目组成的毕业季特别演出。","音乐演出","主校区 · 中心草坪","主校区中心草坪","/event-assets/stage.svg","毕业季,音乐,草坪"},
+            {"校园篮球全明星赛","院系明星球员对抗赛与中场互动活动。","校园赛事","东校区 · 体育馆","东校区体育馆","/event-assets/arena.svg","篮球,竞技,互动"},
+            {"天文观测开放夜","使用校内望远镜观测星空，并配有讲解环节。","社团活动","北校区 · 天文台","北校区天文台","/event-assets/space.svg","天文,夜间,科普"},
+            {"非遗手作体验课","体验传统技艺，在指导下完成一件手工作品。","创意工坊","西校区 · 创客空间","西校区创客空间 201","/event-assets/craft.svg","非遗,手作,体验"},
+            {"校园攀岩挑战日","包含新手体验、技巧指导与限时挑战。","运动体验","东校区 · 攀岩馆","东校区体育中心攀岩馆","/event-assets/arena.svg","攀岩,运动,挑战"},
+            {"青年艺术作品展","集中展示绘画、摄影与数字媒体学生作品。","展览市集","主校区 · 美术馆","主校区美术馆一层","/event-assets/gallery.svg","艺术,摄影,展览"},
+            {"人工智能前沿讲座","邀请产业研究者分享多模态模型与智能体实践。","讲座论坛","南校区 · 科创中心","南校区科创中心报告厅","/event-assets/lecture.svg","人工智能,讲座,科技"},
+            {"校园烘焙工坊","学习基础烘焙流程并完成限定主题甜点。","创意工坊","西校区 · 实训中心","西校区实训中心 305","/event-assets/craft.svg","烘焙,手作,社交"},
+            {"正念减压体验课","面向学生的呼吸练习与基础正念体验。","社团活动","北校区 · 学生活动中心","北校区学生活动中心 204","/event-assets/wellbeing.svg","减压,正念,体验"},
+            {"桌游社主题局","主持人带领的策略桌游主题场，新手可参加。","社团活动","主校区 · 社团之家","主校区社团之家 3 号室","/event-assets/craft.svg","桌游,社交,新手"},
+            {"校园公益市集","学生社团摊位、旧物交换与公益义卖。","展览市集","南校区 · 林荫大道","南校区林荫大道","/event-assets/gallery.svg","市集,公益,社团"},
+            {"经典电影露天放映","草坪露天电影与映后交流，提供限定观影名额。","电影放映","东校区 · 湖畔草坪","东校区湖畔草坪","/event-assets/cinema.svg","电影,露天,交流"}
         };
         int[] prices={2990,3900,1590,2590,5990,4990,12900,9900,6900,4900,5900,15900,6900,7900,12900};
         int[] faces={5000,6000,2500,4000,9000,8000,15900,12900,9900,7900,8900,21900,9900,10900,16900};
@@ -57,9 +57,9 @@ public class DemoStorefront implements ApplicationRunner {
                 if(db.queryForObject("SELECT COUNT(*) FROM ux_shop WHERE id=?",Long.class,shop)==0) bloom.beforeInsert(shop);
                 db.update("INSERT INTO ux_shop(id,name,description,revision) VALUES(?,?,?,1) ON DUPLICATE KEY UPDATE name=VALUES(name),description=VALUES(description),revision=revision+1",shop,s[0],s[1]);
                 String hours=i%3==0?"09:00-21:30":i%3==1?"10:30-22:00":"10:00-21:00";
-                String highlights=s[6]+",可预约,到店体验";
-                String review="环境与服务稳定，近期评价集中提到“"+s[6].split(",")[0]+"”和预约体验。演示评分来自固定样例数据。";
-                String notice="请按预约时间到店；权益不与其他优惠同享。购买后 5 分钟内确认，取消或超时将释放名额。";
+                String highlights=s[6]+",校园活动,限量抢票";
+                String review="近期关注集中在“"+s[6].split(",")[0]+"”和现场体验。热度数据来自固定演示样例。";
+                String notice="请按票面时间到场并携带校园身份证明；下单后 5 分钟内完成模拟支付，取消或超时将释放名额。";
                 db.update("INSERT INTO ux_storefront(shop_id,category,area,address,image_path,published,rating,review_count,monthly_sales,distance_meters,business_hours,highlights,review_summary,service_notice) VALUES(?,?,?,?,?,TRUE,?,?,?,?,?,?,?,?) ON DUPLICATE KEY UPDATE category=VALUES(category),area=VALUES(area),address=VALUES(address),image_path=VALUES(image_path),published=TRUE,rating=VALUES(rating),review_count=VALUES(review_count),monthly_sales=VALUES(monthly_sales),distance_meters=VALUES(distance_meters),business_hours=VALUES(business_hours),highlights=VALUES(highlights),review_summary=VALUES(review_summary),service_notice=VALUES(service_notice)",
                     shop,s[2],s[3],s[4],s[5],ratings[i],reviews[i],sales[i],distances[i],hours,highlights,review,notice);
                 for(int offer=0;offer<2;offer++) {
@@ -68,15 +68,15 @@ public class DemoStorefront implements ApplicationRunner {
                     db.update("INSERT INTO ux_activity(id,capacity,available,price_cents,starts_at,ends_at,process_until) VALUES(?,?,?,?,?,?,?) ON DUPLICATE KEY UPDATE id=id",
                         id,capacity,capacity,price,Timestamp.from(start),Timestamp.from(end),Timestamp.from(end.plusSeconds(300)));
                     db.update("INSERT INTO ux_offer(activity_id,shop_id,title,face_value_cents,terms) VALUES(?,?,?,?,?) ON DUPLICATE KEY UPDATE shop_id=VALUES(shop_id),title=VALUES(title),face_value_cents=VALUES(face_value_cents),terms=VALUES(terms)",
-                        id,shop,offer==0?"单人到店代金券":"双人分享组合券",face,
-                        "每人每场限一单；建单后5分钟内确认，取消或过期后不可重复购买同场。仅用于本地演示，不涉及真实支付或商家核销。");
+                        id,shop,offer==0?"学生单人票":"双人同行票",face,
+                        "每人每票档限购一单；建单后 5 分钟内完成模拟支付，取消或过期后不可重复购买同一票档。仅用于本地演示，不涉及真实支付或现场核销。");
                 }
                 for(int slot=0;slot<2;slot++) {
                     int hour=10+((i+slot*3)%6)*2;
                     var sessionStart=sessionDay.atTime(hour,0).atZone(ZoneId.of("Asia/Shanghai")).toInstant();
                     var sessionEnd=sessionStart.plusSeconds(90*60);
                     long sessionId=sessionId(sessionDay,i,slot);
-                    String title=slot==0?s[0]+"午间体验":s[0]+"晚间体验";
+                    String title=slot==0?s[0]+"午间场":s[0]+"晚间场";
                     String tags=s[2]+","+s[3]+","+s[6];
                     db.update("INSERT INTO ux_experience_session(id,shop_id,title,tags,starts_at,ends_at,price_cents,capacity,available,published) "
                         +"VALUES(?,?,?,?,?,?,?,?,?,TRUE) ON DUPLICATE KEY UPDATE title=VALUES(title),tags=VALUES(tags),starts_at=VALUES(starts_at),ends_at=VALUES(ends_at),price_cents=VALUES(price_cents),capacity=VALUES(capacity),available=LEAST(available,VALUES(capacity)),published=TRUE",
